@@ -5,14 +5,15 @@ import BrandLogo from '../components/BrandLogo'
 // login. Enabled by the VITE_PREVIEW_MODE flag (or ?preview=1). See App.jsx.
 const GROUPS = [
   { title: 'Public / customer-facing', items: [
-    ['/', 'Landing — curtain intro, awning, hero'],
+    ['/', 'Landing — curtain intro, awning, hero, testimonials'],
     ['/signup', 'Customer sign-up'],
     ['/login', 'Customer login (phone/email code)'],
     ['/book', 'Book-a-truck form'],
+    ['/schedule', 'Schedule — "Catch us this week"'],
   ] },
   { title: 'Customer app', items: [
-    ['/find', 'Find — live truck map'],
-    ['/rewards', 'Rewards — stamp card'],
+    ['/find', 'Find — live truck map + schedule link'],
+    ['/rewards', 'Rewards — stamp card + Donut Passport'],
     ['/account', 'Account — profile & alerts'],
   ] },
   { title: 'Owner / operator', items: [
@@ -20,7 +21,10 @@ const GROUPS = [
     ['/admin', 'Operator home + kill switch'],
     ['/admin/live', 'Go Live — broadcast + GPS fail-safes'],
     ['/admin/bookings', 'Bookings — event-day controls'],
+    ['/admin/schedule', 'Schedule — post public/private stops'],
+    ['/admin/reviews', 'Reviews — feature testimonials'],
     ['/admin/games', 'Games — weekly rewards admin'],
+    ['/admin/corporate', 'Corporate — HQ network metrics'],
   ] },
   { title: 'Booked-client event portal', items: [
     ['/track/demo', 'Client portal — with a stage switcher'],
