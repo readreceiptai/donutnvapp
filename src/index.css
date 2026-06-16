@@ -1,0 +1,277 @@
+/* ============================================================================
+   DonutNV brand tokens — pulled from the live logo + favicon.
+   Red/white/blue Americana: broad appeal for adults AND kids, not a kiddie look.
+   These are CSS variables so the whole app re-themes per tenant (white-label):
+   AppShell overwrites them at runtime from tenants.brand in the database.
+   ============================================================================ */
+:root {
+  --red:      #DD1B22;   /* primary — the DonutNV wordmark red */
+  --red-deep: #911A1D;   /* pressed / shadow */
+  --blue:     #0A7BC1;   /* secondary — donut logo blue */
+  --navy:     #003C77;   /* deep accent */
+  --ink:      #231F20;   /* near-black text */
+  --cream:    #FFF7F0;   /* warm off-white background */
+  --paper:    #FFFFFF;
+  --muted:    #6B6B6B;
+  --line:     #ECE6E0;
+  --good:     #1A8A4C;
+
+  --font-head: 'Poppins', system-ui, sans-serif;
+  --font-body: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-fun:  'Gochi Hand', cursive;
+
+  --radius: 16px;
+  --shadow: 0 6px 20px rgba(35,31,32,.10);
+  --shadow-lg: 0 12px 34px rgba(35,31,32,.16);
+  --tap: 52px;           /* min touch target — friendly for non-tech-savvy users */
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--cream);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 { font-family: var(--font-head); font-weight: 700; line-height: 1.15; margin: 0 0 .4em; }
+h1 { font-size: 1.7rem; }
+h2 { font-size: 1.3rem; }
+p  { line-height: 1.5; }
+
+.fun { font-family: var(--font-fun); }
+
+/* ---- Layout ---- */
+.screen {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100%;
+  background: var(--cream);
+  padding: 0 18px calc(96px + env(safe-area-inset-bottom));
+}
+.pad-top { padding-top: 18px; }
+.center { text-align: center; }
+.stack > * + * { margin-top: 14px; }
+
+/* ---- Buttons — big, obvious, thumb-friendly ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: var(--tap);
+  font-family: var(--font-head); font-weight: 700; font-size: 1.05rem;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  padding: 14px 18px; text-decoration: none; transition: transform .05s ease, filter .15s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--red); color: #fff; box-shadow: var(--shadow); }
+.btn-primary:hover { filter: brightness(1.04); }
+.btn-blue { background: var(--blue); color: #fff; box-shadow: var(--shadow); }
+.btn-ghost { background: transparent; color: var(--navy); border: 2px solid var(--line); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ---- Cards ---- */
+.card {
+  background: var(--paper); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 18px;
+}
+.card-accent { border-top: 5px solid var(--red); }
+
+/* ---- Form fields — large labels, clear focus ---- */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-weight: 600; font-family: var(--font-head); margin-bottom: 6px; font-size: .95rem; }
+.field input, .field select {
+  width: 100%; min-height: var(--tap);
+  font-size: 1.05rem; padding: 12px 14px;
+  border: 2px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink);
+}
+.field input:focus, .field select:focus { outline: none; border-color: var(--blue); }
+.field .hint { font-size: .82rem; color: var(--muted); margin-top: 4px; }
+.req { color: var(--red); }
+
+/* ---- Consent rows ---- */
+.consent {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--cream); border: 1.5px solid var(--line);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
+}
+.consent input { width: 24px; height: 24px; margin-top: 2px; flex: 0 0 auto; accent-color: var(--red); }
+.consent .label { font-size: .9rem; line-height: 1.4; }
+.consent .label b { font-family: var(--font-head); }
+
+/* ---- Bottom nav ---- */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: #fff; border-top: 1px solid var(--line);
+  display: flex; justify-content: space-around;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+  max-width: 480px; margin: 0 auto; z-index: 40;
+}
+.tabbar a {
+  flex: 1; text-align: center; text-decoration: none;
+  color: var(--muted); font-size: .72rem; font-weight: 600; font-family: var(--font-head);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.tabbar a .ico { font-size: 1.5rem; line-height: 1; }
+.tabbar a.active { color: var(--red); }
+
+/* ---- Top bar ---- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0 10px; background: var(--cream); z-index: 30;
+}
+
+/* Awning valance at the top of every page — scrolls away with the page. */
+.app-awning {
+  position: static;
+  width: 100%; max-width: 480px; margin: 0 auto;
+  line-height: 0; pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.18));
+}
+.app-awning img { width: 100%; display: block; }
+.topbar .wordmark { font-family: var(--font-head); font-weight: 800; font-size: 1.35rem; color: var(--red); letter-spacing: -.5px; }
+.topbar .wordmark span { color: var(--blue); }
+
+/* ---- Status pill ---- */
+.pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: .8rem; padding: 5px 12px; border-radius: 999px; font-family: var(--font-head); }
+.pill-open { background: rgba(26,138,76,.12); color: var(--good); }
+.pill-closed { background: rgba(35,31,32,.07); color: var(--muted); }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.dot-live { animation: pulse 1.4s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ---- Map ---- */
+.map { width: 100%; height: 58vh; min-height: 320px; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); background: #e9eef3; }
+
+/* ---- Misc ---- */
+.muted { color: var(--muted); }
+.error { background: #fde8e8; color: var(--red-deep); padding: 12px 14px; border-radius: 12px; font-size: .9rem; }
+.success { background: rgba(26,138,76,.12); color: var(--good); padding: 12px 14px; border-radius: 12px; font-size: .92rem; }
+.stamps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.stamp { aspect-ratio: 1; border-radius: 50%; border: 2.5px dashed var(--line); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+.stamp.filled { border-style: solid; border-color: var(--red); background: rgba(221,27,34,.08); }
+.link { color: var(--blue); font-weight: 600; cursor: pointer; text-decoration: underline; background: none; border: none; font-size: 1rem; font-family: var(--font-body); padding: 0; }
+
+/* ============================================================================
+   CURTAIN INTRO — blue awning + curtains slide open to reveal the signup screen.
+   Placeholder fabric is pure CSS; the moment you drop real art into
+   /public/brand/ (awning.png, curtain.png, logo.svg) it swaps in automatically
+   because each layer lists the image FIRST and the CSS fabric as fallback.
+   ============================================================================ */
+.curtain-stage { position: fixed; inset: 0; z-index: 1000; overflow: hidden; perspective: 1400px; }
+.curtain-panel {
+  position: absolute; top: 0; bottom: 0; width: 53%; z-index: 2;
+  transition: transform 2s cubic-bezier(.62, 0, .2, 1);
+  will-change: transform;
+}
+/* Pleat shading over the curtain fabric — bunches up as the panel gathers. */
+.curtain-panel::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg, rgba(0,0,0,.26) 0 5px, rgba(255,255,255,.06) 5px 8px, rgba(0,0,0,0) 8px 21px);
+}
+/* Fireworks canvas during the reveal. */
+.fw { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+/* image layer first (your art), CSS pleats as fallback */
+.curtain-panel.left {
+  left: 0; transform-origin: left center;
+  background:
+    url('/brand/curtain.png') left center / cover no-repeat,
+    repeating-linear-gradient(90deg, #1772AC 0 17px, #023462 17px 34px);
+  box-shadow: inset -22px 0 36px rgba(0, 0, 0, .30);
+}
+.curtain-panel.right {
+  right: 0; transform-origin: right center;
+  background:
+    url('/brand/curtain.png') right center / cover no-repeat,
+    repeating-linear-gradient(90deg, #023462 0 17px, #1772AC 17px 34px);
+  box-shadow: inset 22px 0 36px rgba(0, 0, 0, .30);
+}
+/* Gather to the sides like real drapes (scaleX bunches the pleats). */
+.curtain-stage.open .curtain-panel.left  { transform: translateX(-74%) scaleX(.12); }
+.curtain-stage.open .curtain-panel.right { transform: translateX(74%) scaleX(.12); }
+
+.curtain-center {
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; color: #fff; transition: opacity .55s ease; pointer-events: none;
+}
+.curtain-stage.open .curtain-center { opacity: 0; }
+.curtain-center .word { font-family: var(--font-head); font-weight: 800; font-size: 2rem; text-shadow: 0 2px 6px rgba(0,0,0,.35); }
+.curtain-center .sub { font-family: var(--font-fun); font-size: 1.4rem; opacity: .95; }
+
+/* Real DonutNV awning (transparent PNG) hangs across the top of the intro. */
+.awning-img {
+  position: absolute; top: 0; left: 0; width: 100%; height: auto;
+  z-index: 5; display: block; pointer-events: none;
+}
+
+.donut-mark { width: 76px; height: 76px; border-radius: 50%; background: #DD1B22; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+.donut-mark::after { content: ''; width: 26px; height: 26px; border-radius: 50%; background: #FFF7F0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .curtain-panel { transition: none; }
+}
+
+/* ============================================================================
+   MARKETING LANDING — full-width, professional on desktop, collapses to a
+   single column on mobile. The app screens (.screen) stay phone-width.
+   ============================================================================ */
+.mk { width: 100%; min-height: 100%; background: var(--cream); }
+.mk-awning { width: 100%; line-height: 0; filter: drop-shadow(0 3px 5px rgba(0,0,0,.16)); }
+.mk-awning img { width: 100%; display: block; }
+.mk-wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+.mk-nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0; flex-wrap: wrap; }
+.mk-nav .links { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.mk-nav .links a { color: var(--navy); font-family: var(--font-head); font-weight: 600; text-decoration: none; font-size: 1rem; }
+.mk-nav .links a:hover { color: var(--red); }
+
+.mk-hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center; padding: 28px 0 64px; min-height: 62vh; }
+.mk-hero h1 { font-size: 3.4rem; line-height: 1.04; margin: 8px 0 10px; }
+.mk-hero .sub { font-family: var(--font-fun); font-size: 2.1rem; color: var(--red); margin: 0 0 18px; }
+.mk-hero .lead { max-width: 460px; margin: 0 0 24px; font-size: 1.05rem; }
+.mk-hero .ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+.mk-hero .ctas .btn { width: auto; padding: 14px 28px; }
+.mk-hero-art { display: flex; justify-content: center; }
+.mk-hero-art img { width: 100%; max-width: 420px; height: auto; filter: drop-shadow(0 14px 26px rgba(0,0,0,.20)); }
+
+.mk-section-title { text-align: center; font-size: 2rem; margin: 0 0 26px; }
+.mk-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; padding: 8px 0 60px; }
+.mk-feature { background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; text-align: center; }
+.mk-feature .ico { font-size: 42px; line-height: 1; }
+.mk-feature h3 { margin: 14px 0 6px; font-size: 1.2rem; }
+.mk-feature p { margin: 0; color: var(--muted); }
+
+.mk-band { background: var(--navy); color: #fff; padding: 52px 0; text-align: center; }
+.mk-band h2 { color: #fff; font-size: 2rem; margin: 0 0 8px; }
+.mk-band p { opacity: .92; margin: 0 0 20px; }
+.mk-band .btn { width: auto; padding: 14px 30px; display: inline-flex; }
+
+.mk-footer { padding: 30px 0 54px; text-align: center; color: var(--muted); font-size: .85rem; line-height: 1.8; }
+.mk-footer a { color: var(--navy); font-weight: 600; }
+
+.mk-section { padding: 8px 0 56px; }
+.mk-sub { text-align: center; color: var(--muted); max-width: 640px; margin: 0 auto 28px; font-size: 1.05rem; }
+.mk-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 780px; margin: 0 auto 24px; }
+.mk-chip { background: var(--paper); border: 1.5px solid var(--line); border-radius: 999px; padding: 9px 16px; font-weight: 600; font-family: var(--font-head); font-size: .95rem; color: var(--navy); }
+.mk-chip.more { background: var(--red); color: #fff; border-color: var(--red); }
+.mk-fb { display: inline-flex; align-items: center; gap: 9px; background: #1877F2; color: #fff; border: none; border-radius: var(--radius); padding: 13px 22px; font-weight: 700; font-family: var(--font-head); text-decoration: none; }
+.mk-band.cream { background: var(--cream); color: var(--ink); }
+.mk-band.cream h2 { color: var(--ink); }
+.mk-owner-link { color: var(--muted); font-size: .72rem; opacity: .55; text-decoration: none; }
+.mk-owner-link:hover { opacity: 1; text-decoration: underline; }
+
+@media (max-width: 820px) {
+  .mk-hero { grid-template-columns: 1fr; text-align: center; gap: 18px; padding: 16px 0 40px; min-height: auto; }
+  .mk-hero .ctas { justify-content: center; }
+  .mk-hero .lead { margin-left: auto; margin-right: auto; }
+  .mk-hero h1 { font-size: 2.3rem; }
+  .mk-hero .sub { font-size: 1.55rem; }
+  .mk-features { grid-template-columns: 1fr; }
+  .mk-hero-art { order: -1; }
+  .mk-hero-art img { max-width: 230px; }
+  .mk-nav { justify-content: center; }
+}

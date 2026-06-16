@@ -1,0 +1,129 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { supabase, isConfigured } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+import BrandLogo from '../components/BrandLogo'
+import { BOOKING_CONSENT, CONSENT_VERSION } from '../lib/consentText'
+import { normalizePhone } from './Login'
+
+// Book-a-truck form. Fields mirror donutnv.com/book-a-truck exactly so the app
+// collects the same information as the website. On submit it saves the booking
+// AND pushes it to GHL/LeadConnector so your workflows kick in.
+// Required (matching the website): First, Last, Email, Zip, "Tell us about your event".
+export default function BookTruck() {
+  const { tenant, profile } = useAuth()
+  const [f, setF] = useState({
+    firstName: profile?.first_name || '', lastName: profile?.last_name || '',
+    email: profile?.email || '', phone: profile?.phone || '',
+    eventDate: '', startTime: '', attendance: '', zip: profile?.zip || '', details: '',
+    customerCareSms: false, optionalMarketing: false,
+  })
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState('')
+  const set = (k) => (e) => {
+    const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value
+    setF((p) => ({ ...p, [k]: v }))
+  }
+
+  async function submit(e) {
+    e.preventDefault()
+    setErr('')
+    if (!isConfigured) { setErr('Not connected to Supabase yet — add your keys in .env.'); return }
+    if (!f.firstName || !f.lastName || !f.email || !f.zip || !f.details) {
+      setErr('Please fill in your name, email, ZIP code, and a little about your event.'); return
+    }
+    setBusy(true)
+    const { data, error } = await supabase.from('bookings').insert({
+      tenant_id: tenant?.id, created_by: profile?.id ?? null,
+      contact_name: `${f.firstName} ${f.lastName}`.trim(),
+      contact_phone: f.phone ? normalizePhone(f.phone) : null,
+      contact_email: f.email.trim(),
+      event_date: f.eventDate || null, start_time: f.startTime || null,
+      guests: f.attendance ? parseInt(f.attendance, 10) || null : null,
+      zip: f.zip.trim(), notes: f.details,
+      sms_consent: !!f.customerCareSms, marketing_consent: !!f.optionalMarketing,
+      consent_text_version: CONSENT_VERSION,
+    }).select().single()
+    if (error) { setBusy(false); setErr(error.message); return }
+    // Route the lead to the right app-active franchisee by EVENT ZIP (owned →
+    // that owner; OOB → round-robin to nearest active Zs), then push to GHL.
+    await supabase.rpc('route_booking', { p_booking_id: data.id }).catch(() => {})
+    supabase.functions.invoke('ghl-sync', { body: { booking_id: data.id } }).catch(() => {})
+    setBusy(false); setDone(true)
+  }
+
+  if (done) {
+    return (
+      <div className="screen pad-top center">
+        <div style={{ fontSize: 64, marginTop: 30 }}>🎉</div>
+        <h1>Request received!</h1>
+        <p className="muted">Thanks, {f.firstName}! We'll be in touch shortly to lock in the details and make your event sweet.</p>
+        <Link className="btn btn-primary" to="/" style={{ marginTop: 16 }}>Done</Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="screen pad-top">
+      <div className="topbar"><BrandLogo height={30} /><Link to="/" className="link" style={{ fontSize: '.85rem' }}>Close</Link></div>
+      <h1>Book the truck 🚚</h1>
+      <p className="muted" style={{ marginTop: -6 }}>Tell us about your event and we'll get right back to you.</p>
+
+      <form className="card stack" onSubmit={submit}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Field label="First name *" grow><input className="fld" value={f.firstName} onChange={set('firstName')} required /></Field>
+          <Field label="Last name *" grow><input className="fld" value={f.lastName} onChange={set('lastName')} required /></Field>
+        </div>
+
+        <Field label="Email *"><input className="fld" type="email" inputMode="email" value={f.email} onChange={set('email')} required /></Field>
+
+        <Field label="Phone number">
+          <input className="fld" type="tel" inputMode="tel" value={f.phone} onChange={set('phone')} />
+          <div className="hint">Optional. If provided, we'll use it to coordinate your event (and send a live "on the way" link).</div>
+        </Field>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Field label="Event date" grow><input className="fld" type="date" value={f.eventDate} onChange={set('eventDate')} /></Field>
+          <Field label="Start time" grow><input className="fld" type="time" value={f.startTime} onChange={set('startTime')} /></Field>
+        </div>
+
+        <Field label="Expected attendance"><input className="fld" inputMode="numeric" placeholder="e.g. 75" value={f.attendance} onChange={set('attendance')} /></Field>
+
+        <Field label="Zip code *"><input className="fld" inputMode="numeric" maxLength={5} value={f.zip} onChange={set('zip')} required /></Field>
+
+        <Field label="Tell us about your event *">
+          <textarea rows={4} value={f.details} onChange={set('details')} required
+            style={{ width: '100%', fontSize: '1.05rem', padding: '12px 14px', border: '2px solid var(--line)', borderRadius: 12, fontFamily: 'var(--font-body)' }} />
+        </Field>
+
+        <div>
+          <label className="consent">
+            <input type="checkbox" checked={f.customerCareSms} onChange={set('customerCareSms')} />
+            <span className="label">{BOOKING_CONSENT.customer_care_sms}</span>
+          </label>
+          <label className="consent">
+            <input type="checkbox" checked={f.optionalMarketing} onChange={set('optionalMarketing')} />
+            <span className="label">{BOOKING_CONSENT.optional_marketing}</span>
+          </label>
+        </div>
+
+        <p className="muted" style={{ fontSize: '.76rem', margin: 0 }}>
+          By submitting you agree to our <a className="link" href="https://donutnv.com/terms-of-service/" target="_blank" rel="noreferrer">Terms of Service</a> & <a className="link" href="https://donutnv.com/privacy-policy/" target="_blank" rel="noreferrer">Privacy Policy</a>.
+        </p>
+
+        {err && <div className="error">{err}</div>}
+        <button className="btn btn-primary" disabled={busy}>{busy ? 'Sending…' : 'Request my date'}</button>
+      </form>
+    </div>
+  )
+}
+
+function Field({ label, grow, children }) {
+  return (
+    <div className="field" style={{ margin: 0, flex: grow ? 1 : undefined }}>
+      <label>{label}</label>
+      {children}
+    </div>
+  )
+}

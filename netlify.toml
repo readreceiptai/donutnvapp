@@ -1,0 +1,10 @@
+# Netlify deploy config. Connect this repo in Netlify and it just works.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA routing — every path serves index.html so React Router can take over.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
