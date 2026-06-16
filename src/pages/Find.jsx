@@ -72,7 +72,7 @@ export default function Find() {
       if (markers.current[t.truck_id]) markers.current[t.truck_id].setPosition(pos)
       else markers.current[t.truck_id] = new maps.Marker({
         position: pos, map: mapRef.current, title: t.stop_name || 'DonutNV',
-        icon: donutIcon(maps), zIndex: 50,
+        icon: donutIcon(maps), zIndex: 50, animation: maps.Animation.DROP,
       })
     })
     if (trucks.length && !routed) {

@@ -20,6 +20,7 @@ import Schedule from './pages/Schedule'
 import OpSchedule from './pages/operator/Schedule'
 import OpReviews from './pages/operator/Reviews'
 import OpCorporate from './pages/operator/Corporate'
+import OpCustomers from './pages/operator/Customers'
 import Preview from './pages/Preview'
 
 // Staging preview: unlock every screen with no login. On if VITE_PREVIEW_MODE=1
@@ -63,6 +64,7 @@ export default function App() {
         <Route path="/admin/schedule" element={<OperatorShell><OpSchedule /></OperatorShell>} />
         <Route path="/admin/reviews" element={<OperatorShell><OpReviews /></OperatorShell>} />
         <Route path="/admin/corporate" element={<OperatorShell><OpCorporate /></OperatorShell>} />
+        <Route path="/admin/customers" element={<OperatorShell><OpCustomers /></OperatorShell>} />
         <Route path="/admin/games" element={<OperatorShell><Campaigns /></OperatorShell>} />
         <Route path="*" element={<Navigate to="/preview" replace />} />
       </Routes>
@@ -93,6 +95,7 @@ export default function App() {
           <Route path="/admin/schedule" element={<OpSchedule />} />
           <Route path="/admin/reviews" element={<OpReviews />} />
           <Route path="/admin/corporate" element={<OpCorporate />} />
+          <Route path="/admin/customers" element={<OpCustomers />} />
           <Route path="/admin/games" element={<Campaigns />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>

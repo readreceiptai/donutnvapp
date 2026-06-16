@@ -59,12 +59,12 @@ export default function AdminHome() {
       <Link to="/admin/live" className="btn btn-primary">🟢 Go to broadcast controls</Link>
       <Link to="/admin/games" className="btn btn-blue">🎮 Manage games & rewards</Link>
       <Link to="/admin/reviews" className="btn btn-blue">⭐ Reviews &amp; testimonials</Link>
+      <Link to="/admin/customers" className="btn btn-blue">👥 Customers &amp; export</Link>
       <Link to="/admin/corporate" className="btn btn-ghost">🏢 Corporate dashboard</Link>
 
       <div className="card">
         <h2 style={{ marginBottom: 6 }}>Coming next</h2>
         <ul className="muted" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7 }}>
-          <li>Searchable, exportable customer list</li>
           <li>Square Loyalty sync status (wired, flip on with your Square keys)</li>
           <li>Proximity-alert send log</li>
         </ul>

@@ -23,6 +23,7 @@ const GROUPS = [
     ['/admin/bookings', 'Bookings — event-day controls'],
     ['/admin/schedule', 'Schedule — post public/private stops'],
     ['/admin/reviews', 'Reviews — feature testimonials'],
+    ['/admin/customers', 'Customers — owned list + CSV export'],
     ['/admin/games', 'Games — weekly rewards admin'],
     ['/admin/corporate', 'Corporate — HQ network metrics'],
   ] },
