@@ -33,6 +33,7 @@ export default function GoLive() {
   const [now, setNow] = useState(Date.now())
   const watchId = useRef(null)
   const lastPost = useRef(0)
+  const wakeLock = useRef(null)
 
   // Load this operator's truck, today's stops, and blacklist zones.
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function GoLive() {
       // Resume an already-open session if the operator reloads the page.
       const { data: live } = await supabase.from('active_live_sessions').select('*')
         .eq('tenant_id', profile.tenant_id).limit(1)
-      if (live?.[0]) { setSession(live[0]); setStartedAt(new Date(live[0].started_at).getTime()); startWatch(live[0]) }
+      if (live?.[0]) { setSession(live[0]); setStartedAt(new Date(live[0].started_at).getTime()); startWatch(live[0]); acquireWakeLock() }
     })()
     return stopWatch
   }, [profile]) // eslint-disable-line
@@ -68,6 +69,14 @@ export default function GoLive() {
       stop('Session ended automatically (auto-expire).')
     }
   }, [now]) // eslint-disable-line
+
+  // Wake Lock releases itself whenever the tab is hidden; re-grab it when the
+  // operator comes back to the screen so the phone stays awake again.
+  useEffect(() => {
+    const onVis = () => { if (document.visibilityState === 'visible' && session) acquireWakeLock() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [session]) // eslint-disable-line
 
   const postLocation = useCallback(async (sess, coords) => {
     const pos = { lat: coords.latitude, lng: coords.longitude }
@@ -102,6 +111,16 @@ export default function GoLive() {
     if (watchId.current != null) { navigator.geolocation.clearWatch(watchId.current); watchId.current = null }
   }
 
+  // Keep the screen awake while live so a mounted/plugged-in phone never
+  // auto-locks (the #1 cause of dropped tracking). Released on Close.
+  async function acquireWakeLock() {
+    try { if ('wakeLock' in navigator) wakeLock.current = await navigator.wakeLock.request('screen') } catch { /* unsupported or denied */ }
+  }
+  function releaseWakeLock() {
+    try { wakeLock.current && wakeLock.current.release() } catch { /* noop */ }
+    wakeLock.current = null
+  }
+
   async function open() {
     if (!truck) { setStatus('No truck set up for this territory yet.'); return }
     const ends = new Date(Date.now() + hours * 3600000).toISOString()
@@ -113,6 +132,7 @@ export default function GoLive() {
     if (error) { setStatus(error.message); return }
     setSession(data); setStartedAt(Date.now()); setPaused(false)
     startWatch(data)
+    acquireWakeLock()
   }
 
   async function stop(msg) {
@@ -120,6 +140,7 @@ export default function GoLive() {
       await supabase.from('live_sessions').update({ is_live: false, ends_at: new Date().toISOString() }).eq('id', session.id)
     }
     stopWatch()
+    releaseWakeLock()
     setSession(null); setStartedAt(null); setPaused(false); setSuppressed(false)
     setStatus(msg || 'You are closed. Nothing is broadcasting.')
   }
@@ -180,6 +201,9 @@ export default function GoLive() {
 
           {status && <div className={suppressed ? 'error' : 'success'}>{status}</div>}
           {showNudge && <div className="error">🔔 Still serving? You're still live. Tap Close when you leave.</div>}
+          <p className="muted" style={{ fontSize: '.8rem', textAlign: 'center', margin: 0 }}>
+            📱 The screen stays awake while you're live — mount &amp; plug in the truck phone and tracking runs hands-free.
+          </p>
 
           <button className="btn btn-blue" onClick={togglePause}>{paused ? '▶️ Resume broadcast' : '⏸️ Go dark (private event)'}</button>
           <button className="btn btn-primary" onClick={() => stop()} style={{ background: 'var(--red-deep)' }}>🔴 Close — stop sharing</button>
