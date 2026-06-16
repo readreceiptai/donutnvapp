@@ -27,7 +27,8 @@ export default function Find() {
       const live = (sessions || [])
         .map((s) => ({ ...s, loc: locByTruck[s.truck_id] }))
         .filter((s) => s.loc)
-      setTrucks(live)
+      // Fall back to the demo donut pin when testing (preview / ?testpin=1).
+      setTrucks(live.length ? live : (testPinOn() ? [DEMO_TRUCK] : []))
     }
     pull()
     timer = setInterval(pull, 20000)
@@ -132,15 +133,32 @@ export default function Find() {
 }
 
 function donutIcon(maps) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
-    <circle cx="22" cy="20" r="14" fill="#0A7BC1"/><circle cx="22" cy="20" r="10" fill="#DD1B22"/>
-    <circle cx="22" cy="20" r="3.5" fill="#FFF7F0"/>
-    <path d="M22 36 L16 40 L28 40 Z" fill="#0A7BC1"/></svg>`
-  return { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg), scaledSize: new maps.Size(44, 44), anchor: new maps.Point(22, 40) }
+  // The real DonutNV mini-donut is the map pin — bottom-center anchored so the
+  // donut sits right on the spot. On-brand and unmistakable.
+  return {
+    url: '/brand/minidonut.png',
+    scaledSize: new maps.Size(52, 52),
+    anchor: new maps.Point(26, 50),
+  }
 }
 
 function formatTime(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+// A demo pin so you can see the branded donut marker without a live truck.
+// Shows in preview mode, or on any /find?testpin=1 link. Never in production.
+const DEMO_TRUCK = {
+  truck_id: 'demo-pin',
+  stop_name: '🍩 Test pin — DonutNV (demo)',
+  ends_at: null,
+  loc: { lat: 28.0764, lng: -82.7637 }, // Palm Harbor
+}
+function testPinOn() {
+  try {
+    if (import.meta.env.VITE_PREVIEW_MODE === '1') return true
+    return new URLSearchParams(window.location.search).get('testpin') === '1'
+  } catch { return false }
 }
 
 // Soft, brand-friendly map styling (de-emphasized so the red markers pop).
