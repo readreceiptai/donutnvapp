@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { CONSENT_TEXT, CONSENT_VERSION } from '../lib/consentText'
 import { normalizePhone } from './Login'
 import { isLikelyBot, honeypotStyle } from '../lib/antibot'
+import TurnstileWidget, { TURNSTILE_ENABLED, passesTurnstile } from '../components/Turnstile'
 
 // The owned-list capture. We collect phone + name + email + ZIP + birthday in one
 // friendly screen, then verify the phone with a one-time code (which also creates
@@ -24,6 +25,7 @@ export default function SignUp() {
   const [stage, setStage] = useState('form') // 'form' | 'verify'
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [tsToken, setTsToken] = useState('')
 
   const set = (k) => (e) => {
     const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value
@@ -41,7 +43,10 @@ export default function SignUp() {
     if (!f.firstName || !f.phone || !f.email || !f.zip) { setErr('Please fill in your name, phone, email, and ZIP.'); return }
     if (age === null) { setErr('Please pick your birthday — that\'s how you get your birthday treat 🎂'); return }
     if (isMinor && !f.parentEmail) { setErr('Since you\'re under 13, please add a parent or guardian\'s email so they can approve your account.'); return }
+    if (TURNSTILE_ENABLED && !tsToken) { setErr('Please complete the quick "I\'m human" check below.'); return }
     setBusy(true)
+    // Server-side bot check (no-op until Turnstile is configured).
+    if (!(await passesTurnstile(tsToken))) { setBusy(false); setErr('Verification failed — please try the human check again.'); return }
     // Email a one-time code (no Twilio needed). Creates the auth user on verify.
     const { error } = await supabase.auth.signInWithOtp({ email: f.email.trim() })
     setBusy(false)
@@ -188,6 +193,7 @@ export default function SignUp() {
           you can reply STOP anytime), our Terms, and Privacy Policy.
         </p>
 
+        <TurnstileWidget onToken={setTsToken} />
         {err && <div className="error">{err}</div>}
         <button className="btn btn-primary" disabled={busy}>{busy ? 'Sending code…' : 'Create my account'}</button>
       </form>

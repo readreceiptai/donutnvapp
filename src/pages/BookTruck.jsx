@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, isConfigured } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -6,6 +6,7 @@ import BrandLogo from '../components/BrandLogo'
 import { BOOKING_CONSENT, CONSENT_VERSION } from '../lib/consentText'
 import { normalizePhone } from './Login'
 import { isLikelyBot, honeypotStyle } from '../lib/antibot'
+import TurnstileWidget, { TURNSTILE_ENABLED, passesTurnstile } from '../components/Turnstile'
 
 // Book-a-truck form. Fields mirror donutnv.com/book-a-truck exactly so the app
 // collects the same information as the website. On submit it saves the booking
@@ -23,6 +24,7 @@ export default function BookTruck() {
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
   const [err, setErr] = useState('')
+  const [tsToken, setTsToken] = useState('')
   const set = (k) => (e) => {
     const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value
     setF((p) => ({ ...p, [k]: v }))
@@ -36,7 +38,9 @@ export default function BookTruck() {
     if (!f.firstName || !f.lastName || !f.email || !f.zip || !f.details) {
       setErr('Please fill in your name, email, ZIP code, and a little about your event.'); return
     }
+    if (TURNSTILE_ENABLED && !tsToken) { setErr('Please complete the quick "I\'m human" check below.'); return }
     setBusy(true)
+    if (!(await passesTurnstile(tsToken))) { setBusy(false); setErr('Verification failed — please try the human check again.'); return }
     const { data, error } = await supabase.from('bookings').insert({
       tenant_id: tenant?.id, created_by: profile?.id ?? null,
       contact_name: `${f.firstName} ${f.lastName}`.trim(),
@@ -117,6 +121,7 @@ export default function BookTruck() {
           By submitting you agree to our <a className="link" href="https://donutnv.com/terms-of-service/" target="_blank" rel="noreferrer">Terms of Service</a> & <a className="link" href="https://donutnv.com/privacy-policy/" target="_blank" rel="noreferrer">Privacy Policy</a>.
         </p>
 
+        <TurnstileWidget onToken={setTsToken} />
         {err && <div className="error">{err}</div>}
         <button className="btn btn-primary" disabled={busy}>{busy ? 'Sending…' : 'Request my date'}</button>
       </form>
