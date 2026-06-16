@@ -33,13 +33,12 @@ export default function Find() {
         .map((s) => ({ ...s, loc: locByTruck[s.truck_id] }))
         .filter((s) => s.loc)
 
-      // Buzz = today's check-ins for this territory (anonymous count, never locations).
+      // Buzz = today's customers served for this territory — an anonymous count
+      // from real Square sales (get_buzz RPC). No names, no locations.
       let buzzCount = 0
       if (tenant?.id) {
-        const start = new Date(); start.setHours(0, 0, 0, 0)
-        const { count } = await supabase.from('check_ins').select('id', { count: 'exact', head: true })
-          .eq('tenant_id', tenant.id).gte('created_at', start.toISOString())
-        buzzCount = count || 0
+        const { data: b } = await supabase.rpc('get_buzz', { p_tenant: tenant.id })
+        buzzCount = b || 0
       }
 
       if (live.length) { setTrucks(live); setBuzz(buzzCount) }
@@ -188,7 +187,7 @@ export default function Find() {
               <div>
                 <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '1.1rem' }}>{t.stop_name || 'On the move'}</div>
                 <div className="muted" style={{ fontSize: '.9rem' }}>Open until {t.ends_at ? formatTime(t.ends_at) : 'later today'}</div>
-                {buzz > 0 && <div style={{ fontSize: '.9rem', fontWeight: 700, color: 'var(--red)', marginTop: 2 }}>🔥 {buzz} {buzz === 1 ? 'fan' : 'fans'} here today</div>}
+                {buzz > 0 && <div style={{ fontSize: '.9rem', fontWeight: 700, color: 'var(--red)', marginTop: 2 }}>🍩 {buzz} served today</div>}
               </div>
               <a className="btn btn-blue" style={{ width: 'auto', padding: '10px 16px' }}
                  href={`https://www.google.com/maps/dir/?api=1&destination=${t.loc.lat},${t.loc.lng}`}

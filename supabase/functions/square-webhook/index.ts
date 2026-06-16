@@ -27,31 +27,40 @@ Deno.serve(async (req) => {
 
   // 2) Pull what we need from the Square event. Field paths depend on the event
   //    type you subscribe to; payment.created carries buyer + location info.
-  const phone: string | undefined = event?.data?.object?.payment?.buyer_phone_number
-  const squareLocationId: string | undefined = event?.data?.object?.payment?.location_id
-  if (!phone) return new Response(JSON.stringify({ ok: true, skipped: 'no phone on sale' }), { status: 200 })
+  const payment = event?.data?.object?.payment ?? {}
+  const phone: string | undefined = payment.buyer_phone_number
+  const squareLocationId: string | undefined = payment.location_id
 
   // 3) Which tenant owns this Square location?
   const { data: tenant } = await supabase.from('tenants')
     .select('id').eq('square_location_id', squareLocationId).maybeSingle()
   if (!tenant) return new Response(JSON.stringify({ ok: true, skipped: 'unknown location' }), { status: 200 })
 
-  // 4) Find the customer in our owned list by phone (within this tenant).
-  const { data: profile } = await supabase.from('profiles')
-    .select('id').eq('tenant_id', tenant.id).eq('phone', normalize(phone)).maybeSingle()
-  if (!profile) return new Response(JSON.stringify({ ok: true, skipped: 'customer not in app yet' }), { status: 200 })
-
-  // 5) Record the purchase as a stamp against the active stamp-card game.
-  const { data: campaign } = await supabase.from('campaigns')
-    .select('id').eq('tenant_id', tenant.id).eq('kind', 'checkin_stamp').eq('is_active', true)
-    .order('created_at', { ascending: false }).limit(1).maybeSingle()
-
-  await supabase.from('check_ins').insert({
-    profile_id: profile.id, tenant_id: tenant.id,
-    campaign_id: campaign?.id ?? null, source: 'square',
+  // 4) Count EVERY sale as a customer served (anonymous) — powers the real-time
+  //    "served today" buzz whether or not the buyer is an app member.
+  const { data: live } = await supabase.from('live_sessions')
+    .select('id').eq('tenant_id', tenant.id).eq('is_live', true)
+    .gt('ends_at', new Date().toISOString()).limit(1).maybeSingle()
+  await supabase.from('sales_events').insert({
+    tenant_id: tenant.id, session_id: live?.id ?? null, source: 'square',
   })
 
-  return new Response(JSON.stringify({ ok: true, stamped: true }), { headers: { 'content-type': 'application/json' } })
+  // 5) If the buyer is in our owned list (matched by phone), also stamp their card.
+  if (phone) {
+    const { data: profile } = await supabase.from('profiles')
+      .select('id').eq('tenant_id', tenant.id).eq('phone', normalize(phone)).maybeSingle()
+    if (profile) {
+      const { data: campaign } = await supabase.from('campaigns')
+        .select('id').eq('tenant_id', tenant.id).eq('kind', 'checkin_stamp').eq('is_active', true)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      await supabase.from('check_ins').insert({
+        profile_id: profile.id, tenant_id: tenant.id,
+        campaign_id: campaign?.id ?? null, source: 'square',
+      })
+    }
+  }
+
+  return new Response(JSON.stringify({ ok: true, counted: true }), { headers: { 'content-type': 'application/json' } })
 })
 
 function normalize(v: string) {
