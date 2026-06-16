@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, isConfigured } from '../lib/supabase'
 
-// Passwordless login: enter phone or email, get a one-time code. No passwords
-// to forget — the friendliest option for a non-tech-savvy audience.
+// Passwordless login by email code — no passwords, and no Twilio needed.
+// (Marketing texts go through GHL; the login code is the one system message,
+// and it's delivered by email.)
 export default function Login() {
-  const [method, setMethod] = useState('phone') // 'phone' | 'email'
-  const [value, setValue] = useState('')
+  const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [stage, setStage] = useState('enter') // 'enter' | 'verify'
   const [busy, setBusy] = useState(false)
@@ -17,10 +17,7 @@ export default function Login() {
     setErr('')
     if (!isConfigured) { setErr('App not connected to Supabase yet — add your keys in .env.'); return }
     setBusy(true)
-    const payload = method === 'phone'
-      ? { phone: normalizePhone(value) }
-      : { email: value.trim() }
-    const { error } = await supabase.auth.signInWithOtp(payload)
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim() })
     setBusy(false)
     if (error) setErr(error.message)
     else setStage('verify')
@@ -30,13 +27,10 @@ export default function Login() {
     e.preventDefault()
     setErr('')
     setBusy(true)
-    const payload = method === 'phone'
-      ? { phone: normalizePhone(value), token: code.trim(), type: 'sms' }
-      : { email: value.trim(), token: code.trim(), type: 'email' }
-    const { error } = await supabase.auth.verifyOtp(payload)
+    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' })
     setBusy(false)
     if (error) setErr(error.message)
-    // On success, AuthContext picks up the session and App routes to the map.
+    // On success, AuthContext picks up the session and App routes to the app.
   }
 
   return (
@@ -46,34 +40,27 @@ export default function Login() {
 
       {stage === 'enter' && (
         <form className="card stack" onSubmit={sendCode} style={{ marginTop: 10 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className={`btn ${method === 'phone' ? 'btn-blue' : 'btn-ghost'}`} onClick={() => setMethod('phone')}>Phone</button>
-            <button type="button" className={`btn ${method === 'email' ? 'btn-blue' : 'btn-ghost'}`} onClick={() => setMethod('email')}>Email</button>
-          </div>
           <div className="field" style={{ margin: 0 }}>
-            <label>{method === 'phone' ? 'Mobile number' : 'Email address'}</label>
-            <input
-              type={method === 'phone' ? 'tel' : 'email'}
-              inputMode={method === 'phone' ? 'tel' : 'email'}
-              placeholder={method === 'phone' ? '(919) 555-1234' : 'you@email.com'}
-              value={value} onChange={(e) => setValue(e.target.value)} required
-            />
+            <label>Email address</label>
+            <input type="email" inputMode="email" placeholder="you@email.com"
+              value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <div className="hint">We'll email you a 6-digit code to log in.</div>
           </div>
           {err && <div className="error">{err}</div>}
-          <button className="btn btn-primary" disabled={busy}>{busy ? 'Sending…' : 'Send me a code'}</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? 'Sending…' : 'Email me a code'}</button>
         </form>
       )}
 
       {stage === 'verify' && (
         <form className="card stack" onSubmit={verify} style={{ marginTop: 10 }}>
-          <p className="muted" style={{ margin: 0 }}>We sent a 6-digit code to <b>{value}</b>.</p>
+          <p className="muted" style={{ margin: 0 }}>We emailed a 6-digit code to <b>{email}</b>.</p>
           <div className="field" style={{ margin: 0 }}>
             <label>Enter code</label>
             <input type="text" inputMode="numeric" placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} required />
           </div>
           {err && <div className="error">{err}</div>}
           <button className="btn btn-primary" disabled={busy}>{busy ? 'Checking…' : 'Log in'}</button>
-          <button type="button" className="link" onClick={() => setStage('enter')}>Use a different number</button>
+          <button type="button" className="link" onClick={() => setStage('enter')}>Use a different email</button>
         </form>
       )}
 

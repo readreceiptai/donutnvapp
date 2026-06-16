@@ -42,8 +42,8 @@ export default function SignUp() {
     if (age === null) { setErr('Please pick your birthday — that\'s how you get your birthday treat 🎂'); return }
     if (isMinor && !f.parentEmail) { setErr('Since you\'re under 13, please add a parent or guardian\'s email so they can approve your account.'); return }
     setBusy(true)
-    // Send a one-time code to the phone. This creates the auth user on first verify.
-    const { error } = await supabase.auth.signInWithOtp({ phone: normalizePhone(f.phone) })
+    // Email a one-time code (no Twilio needed). Creates the auth user on verify.
+    const { error } = await supabase.auth.signInWithOtp({ email: f.email.trim() })
     setBusy(false)
     if (error) setErr(error.message)
     else setStage('verify')
@@ -54,7 +54,7 @@ export default function SignUp() {
     setErr('')
     setBusy(true)
     const { data, error } = await supabase.auth.verifyOtp({
-      phone: normalizePhone(f.phone), token: code.trim(), type: 'sms',
+      email: f.email.trim(), token: code.trim(), type: 'email',
     })
     if (error) { setBusy(false); setErr(error.message); return }
 
@@ -95,7 +95,7 @@ export default function SignUp() {
       <div className="screen pad-top">
         <h1>Almost there!</h1>
         <form className="card stack" onSubmit={verify} style={{ marginTop: 10 }}>
-          <p className="muted" style={{ margin: 0 }}>We texted a 6-digit code to <b>{f.phone}</b>.</p>
+          <p className="muted" style={{ margin: 0 }}>We emailed a 6-digit code to <b>{f.email}</b>.</p>
           <div className="field" style={{ margin: 0 }}>
             <label>Enter your code</label>
             <input type="text" inputMode="numeric" placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} required />
@@ -112,7 +112,7 @@ export default function SignUp() {
     <div className="screen pad-top">
       <Link to="/welcome" className="link" style={{ display: 'inline-block', marginBottom: 12 }}>← Back</Link>
       <h1>Join the donut club</h1>
-      <p className="muted" style={{ marginTop: -6 }}>Takes about 30 seconds. We'll text you a code to confirm.</p>
+      <p className="muted" style={{ marginTop: -6 }}>Takes about 30 seconds. We'll email you a code to confirm.</p>
 
       <form className="card stack" onSubmit={start} style={{ marginTop: 12 }}>
         <input type="text" name="company" tabIndex={-1} autoComplete="off" aria-hidden="true"
@@ -131,7 +131,7 @@ export default function SignUp() {
         <div className="field" style={{ margin: 0 }}>
           <label>Mobile number <span className="req">*</span></label>
           <input type="tel" inputMode="tel" placeholder="(919) 555-1234" value={f.phone} onChange={set('phone')} required />
-          <div className="hint">We text truck alerts and your code here. Reply STOP anytime.</div>
+          <div className="hint">Used for truck text alerts (reply STOP anytime). Your login code comes by email.</div>
         </div>
 
         <div className="field" style={{ margin: 0 }}>
