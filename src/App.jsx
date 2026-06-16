@@ -18,6 +18,7 @@ import BookTruck from './pages/BookTruck'
 import TrackEvent from './pages/TrackEvent'
 import Schedule from './pages/Schedule'
 import OpSchedule from './pages/operator/Schedule'
+import OpReviews from './pages/operator/Reviews'
 import Preview from './pages/Preview'
 
 // Staging preview: unlock every screen with no login. On if VITE_PREVIEW_MODE=1
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="/admin/live" element={<OperatorShell><GoLive /></OperatorShell>} />
         <Route path="/admin/bookings" element={<OperatorShell><Bookings /></OperatorShell>} />
         <Route path="/admin/schedule" element={<OperatorShell><OpSchedule /></OperatorShell>} />
+        <Route path="/admin/reviews" element={<OperatorShell><OpReviews /></OperatorShell>} />
         <Route path="/admin/games" element={<OperatorShell><Campaigns /></OperatorShell>} />
         <Route path="*" element={<Navigate to="/preview" replace />} />
       </Routes>
@@ -87,6 +89,7 @@ export default function App() {
           <Route path="/admin/live" element={<GoLive />} />
           <Route path="/admin/bookings" element={<Bookings />} />
           <Route path="/admin/schedule" element={<OpSchedule />} />
+          <Route path="/admin/reviews" element={<OpReviews />} />
           <Route path="/admin/games" element={<Campaigns />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>

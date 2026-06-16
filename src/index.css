@@ -250,6 +250,12 @@ p  { line-height: 1.5; }
 .mk-band p { opacity: .92; margin: 0 0 20px; }
 .mk-band .btn { width: auto; padding: 14px 30px; display: inline-flex; }
 
+.mk-reviews { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; text-align: left; margin-top: 6px; }
+.mk-review { background: #fff; color: var(--ink); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.mk-review p { margin: 8px 0 10px; font-size: .98rem; line-height: 1.55; opacity: 1; color: var(--ink); }
+.mk-stars { color: #FFC83D; letter-spacing: 2px; font-size: 1.05rem; }
+.mk-review-name { font-weight: 700; font-size: .9rem; }
+
 .mk-footer { padding: 30px 0 54px; text-align: center; color: var(--muted); font-size: .85rem; line-height: 1.8; }
 .mk-footer a { color: var(--navy); font-weight: 600; }
 

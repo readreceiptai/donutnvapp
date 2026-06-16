@@ -58,6 +58,7 @@ export default function AdminHome() {
 
       <Link to="/admin/live" className="btn btn-primary">🟢 Go to broadcast controls</Link>
       <Link to="/admin/games" className="btn btn-blue">🎮 Manage games & rewards</Link>
+      <Link to="/admin/reviews" className="btn btn-blue">⭐ Reviews &amp; testimonials</Link>
 
       <div className="card">
         <h2 style={{ marginBottom: 6 }}>Coming next</h2>

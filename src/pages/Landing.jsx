@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import CurtainIntro from '../components/CurtainIntro'
 import BrandLogo from '../components/BrandLogo'
 import MiniDonut from '../components/MiniDonut'
+import { supabase } from '../lib/supabase'
 
 const EVENT_TYPES = [
   'Birthday parties', 'Corporate events', 'Graduations', 'Weddings', 'School functions',
@@ -15,6 +16,13 @@ export default function Landing() {
   const { tenant } = useAuth()
   const [installEvt, setInstallEvt] = useState(null)
   const [installed, setInstalled] = useState(false)
+  const [reviews, setReviews] = useState([])
+
+  useEffect(() => {
+    if (!tenant?.id) return
+    supabase.rpc('get_featured_reviews', { p_tenant: tenant.id, p_limit: 9 })
+      .then(({ data }) => setReviews(data || [])).catch(() => {})
+  }, [tenant?.id])
 
   useEffect(() => {
     const onPrompt = (e) => { e.preventDefault(); setInstallEvt(e) }
@@ -98,6 +106,24 @@ export default function Landing() {
           </div>
         </div>
       </div>
+
+      {/* What people are saying — only shows once reviews are featured */}
+      {reviews.length > 0 && (
+        <div className="mk-band">
+          <div className="mk-wrap">
+            <h2>What people are saying 💬</h2>
+            <div className="mk-reviews">
+              {reviews.map((r) => (
+                <div className="mk-review" key={r.id}>
+                  <div className="mk-stars">{'★'.repeat(r.rating || 5)}</div>
+                  <p>“{r.body}”</p>
+                  <div className="mk-review-name">— {r.author_name || 'Happy customer'}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Private events — clearly separated */}
       <div className="mk-wrap mk-section" style={{ paddingTop: 48 }}>
