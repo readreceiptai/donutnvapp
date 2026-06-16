@@ -8,6 +8,7 @@
 
 const RESERVED = new Set([
   '', 'signup', 'login', 'rewards', 'account', 'admin', 'app', 'find', 'index.html',
+  'book', 'schedule', 'owner', 'track', 'preview',
 ])
 
 // Default territory when someone hits the bare domain with no segment.
