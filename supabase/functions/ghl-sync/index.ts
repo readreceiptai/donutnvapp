@@ -35,6 +35,13 @@ Deno.serve(async (req) => {
   const { data: b } = await supabase.from('bookings').select('*').eq('id', booking_id).single()
   if (!b) return json({ error: 'booking not found' }, 404)
 
+  // Idempotency: this function is invoked from the browser right after a booking
+  // is created. If it's already been synced, return early so a replay can't
+  // create duplicate GHL contacts/opportunities.
+  if (b.ghl_contact_id) {
+    return json({ ok: true, alreadySynced: true, contactId: b.ghl_contact_id, opportunityId: b.ghl_opportunity_id })
+  }
+
   const [firstName, ...rest] = (b.contact_name || '').split(' ')
 
   // 1) Upsert the contact in GHL.

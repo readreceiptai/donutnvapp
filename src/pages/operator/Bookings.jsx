@@ -83,6 +83,27 @@ export default function Bookings() {
     flash('Tracking link copied.')
   }
 
+  // Request a Square deposit: ask for a dollar amount, create the hosted payment
+  // link, and (if GHL is connected) let GHL text/email it to the client.
+  async function requestDeposit(b) {
+    const raw = window.prompt(`Deposit amount for ${b.contact_name}'s event? (USD)`, '50')
+    if (raw == null) return
+    const dollars = parseFloat(String(raw).replace(/[^0-9.]/g, ''))
+    if (!Number.isFinite(dollars) || dollars < 1) { flash('Enter an amount of at least $1.'); return }
+    setMsg('Creating Square deposit link…')
+    const { data, error } = await supabase.functions.invoke('square-deposit', {
+      body: { booking_id: b.id, amount_cents: Math.round(dollars * 100) },
+    })
+    if (error || data?.error) { flash(data?.error || 'Could not create the deposit link (is Square connected?).'); return }
+    if (data?.url) navigator.clipboard?.writeText(data.url).catch(() => {})
+    flash(data?.pushedToGhl ? 'Deposit link created — GHL will send it. (Copied too.)' : 'Deposit link created & copied to clipboard.')
+    load()
+  }
+
+  function copyDeposit(b) {
+    if (b.deposit_url) { navigator.clipboard?.writeText(b.deposit_url); flash('Deposit link copied.') }
+  }
+
   const Btn = ({ onClick, color, children }) => (
     <button className={`btn ${color || 'btn-primary'}`} style={{ width: 'auto', padding: '10px 14px' }} onClick={onClick}>{children}</button>
   )
@@ -112,7 +133,19 @@ export default function Bookings() {
             {b.status === 'serving' && <Btn onClick={() => advance(b, 'wrapping')}>Wrapping up</Btn>}
             {b.status === 'wrapping' && <Btn color="btn-primary" onClick={() => advance(b, 'departed')}>🚚 We've left</Btn>}
             {['departed', 'reviewed'].includes(b.status) && <Btn color="btn-ghost" onClick={() => advance(b, 'completed')}>Close out</Btn>}
+            {(!b.deposit_status || b.deposit_status === 'none') && !['cancelled', 'completed'].includes(b.status) &&
+              <Btn color="btn-blue" onClick={() => requestDeposit(b)}>💳 Request deposit</Btn>}
+            {b.deposit_status === 'requested' && <Btn color="btn-ghost" onClick={() => copyDeposit(b)}>Copy deposit link</Btn>}
           </div>
+
+          {b.deposit_status && b.deposit_status !== 'none' && (
+            <div className="muted" style={{ fontSize: '.82rem', marginTop: 8 }}>
+              💳 Deposit {b.deposit_amount_cents ? `$${(b.deposit_amount_cents / 100).toFixed(2)} ` : ''}
+              {b.deposit_status === 'paid'
+                ? <b style={{ color: 'var(--ok, #1a9e5f)' }}>paid ✓</b>
+                : <b>requested — awaiting payment</b>}
+            </div>
+          )}
 
           {b.review_rating && (
             <div className="muted" style={{ fontSize: '.82rem', marginTop: 8 }}>

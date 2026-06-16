@@ -8,9 +8,12 @@
 // In Square Developer Dashboard → Webhooks, point "payment.created" (or
 // "order.created") at this function's URL.
 // Secrets:  SQUARE_WEBHOOK_SIGNATURE_KEY  (verify the request is really Square)
+//           SQUARE_WEBHOOK_URL            (the EXACT subscription URL from Square's
+//                                          dashboard — used in the signature base)
+//   supabase secrets set SQUARE_WEBHOOK_SIGNATURE_KEY=... SQUARE_WEBHOOK_URL=...
 //
-// This is intentionally a clean stub: it verifies, parses, matches the customer
-// by phone, and records a stamp against the active stamp-card campaign.
+// This verifies the Square HMAC signature, parses, matches the customer by
+// phone, records an anonymous sale (buzz), and stamps the card if a member.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -19,10 +22,41 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+const SIG_KEY = Deno.env.get('SQUARE_WEBHOOK_SIGNATURE_KEY') ?? ''
+
+// Square signs: base64( HMAC-SHA256( signatureKey, notificationUrl + rawBody ) )
+// and sends it in the x-square-hmacsha256-signature header. We must hash the
+// RAW request body (not re-serialized JSON) for the signature to match.
+async function verifySquare(req: Request, rawBody: string): Promise<boolean> {
+  if (!SIG_KEY) return false // fail closed: no key configured = reject
+  const sent = req.headers.get('x-square-hmacsha256-signature') ?? ''
+  if (!sent) return false
+  // Use the exact configured URL if provided, else the request URL.
+  const url = Deno.env.get('SQUARE_WEBHOOK_URL') || req.url
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(SIG_KEY), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  )
+  const mac = await crypto.subtle.sign('HMAC', key, enc.encode(url + rawBody))
+  const expected = btoa(String.fromCharCode(...new Uint8Array(mac)))
+  return timingSafeEqual(expected, sent)
+}
+
+// Constant-time string compare so we don't leak the signature via timing.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
+}
+
 Deno.serve(async (req) => {
-  // 1) TODO: verify the Square signature header with SQUARE_WEBHOOK_SIGNATURE_KEY
-  //    before trusting the body. (Square sends x-square-hmacsha256-signature.)
-  const event = await req.json().catch(() => null)
+  // 1) Verify the Square signature BEFORE trusting anything in the body.
+  const rawBody = await req.text()
+  if (!(await verifySquare(req, rawBody))) {
+    return new Response('invalid signature', { status: 401 })
+  }
+  const event = (() => { try { return JSON.parse(rawBody) } catch { return null } })()
   if (!event) return new Response('bad request', { status: 400 })
 
   // 2) Pull what we need from the Square event. Field paths depend on the event
@@ -30,11 +64,26 @@ Deno.serve(async (req) => {
   const payment = event?.data?.object?.payment ?? {}
   const phone: string | undefined = payment.buyer_phone_number
   const squareLocationId: string | undefined = payment.location_id
+  const orderId: string | undefined = payment.order_id
+
+  // 2b) Is this the payment for an event deposit we requested? Match by the
+  //     Square order id we stored when creating the payment link, and only when
+  //     Square reports the payment completed/approved.
+  const paymentDone = ['COMPLETED', 'APPROVED', 'CAPTURED'].includes(String(payment.status || '').toUpperCase())
+  if (orderId && paymentDone) {
+    const { data: dep } = await supabase.from('bookings')
+      .select('id, deposit_status').eq('square_order_id', orderId).maybeSingle()
+    if (dep && dep.deposit_status !== 'paid') {
+      await supabase.from('bookings').update({
+        deposit_status: 'paid', deposit_paid_at: new Date().toISOString(),
+      }).eq('id', dep.id)
+    }
+  }
 
   // 3) Which tenant owns this Square location?
   const { data: tenant } = await supabase.from('tenants')
     .select('id').eq('square_location_id', squareLocationId).maybeSingle()
-  if (!tenant) return new Response(JSON.stringify({ ok: true, skipped: 'unknown location' }), { status: 200 })
+  if (!tenant) return new Response(JSON.stringify({ ok: true, skipped: 'unknown location', depositMatched: !!orderId }), { status: 200 })
 
   // 4) Count EVERY sale as a customer served (anonymous) — powers the real-time
   //    "served today" buzz whether or not the buyer is an app member.
