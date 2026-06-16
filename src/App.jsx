@@ -16,6 +16,8 @@ import Campaigns from './pages/operator/Campaigns'
 import Bookings from './pages/operator/Bookings'
 import BookTruck from './pages/BookTruck'
 import TrackEvent from './pages/TrackEvent'
+import Schedule from './pages/Schedule'
+import OpSchedule from './pages/operator/Schedule'
 import Preview from './pages/Preview'
 
 // Staging preview: unlock every screen with no login. On if VITE_PREVIEW_MODE=1
@@ -48,6 +50,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/owner" element={<OwnerLogin />} />
         <Route path="/book" element={<BookTruck />} />
+        <Route path="/schedule" element={<Schedule />} />
         <Route path="/track/:token" element={<TrackEvent />} />
         <Route path="/find" element={<AppShell><Find /></AppShell>} />
         <Route path="/rewards" element={<AppShell><Rewards /></AppShell>} />
@@ -55,6 +58,7 @@ export default function App() {
         <Route path="/admin" element={<OperatorShell><AdminHome /></OperatorShell>} />
         <Route path="/admin/live" element={<OperatorShell><GoLive /></OperatorShell>} />
         <Route path="/admin/bookings" element={<OperatorShell><Bookings /></OperatorShell>} />
+        <Route path="/admin/schedule" element={<OperatorShell><OpSchedule /></OperatorShell>} />
         <Route path="/admin/games" element={<OperatorShell><Campaigns /></OperatorShell>} />
         <Route path="*" element={<Navigate to="/preview" replace />} />
       </Routes>
@@ -68,6 +72,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/book" element={<BookTruck />} />
+        <Route path="/schedule" element={<Schedule />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/login" element={<Login />} />
         <Route path="/owner" element={<OwnerLogin />} />
@@ -81,6 +86,7 @@ export default function App() {
           <Route path="/admin" element={<AdminHome />} />
           <Route path="/admin/live" element={<GoLive />} />
           <Route path="/admin/bookings" element={<Bookings />} />
+          <Route path="/admin/schedule" element={<OpSchedule />} />
           <Route path="/admin/games" element={<Campaigns />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
@@ -92,6 +98,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Find />} />
           <Route path="/book" element={<BookTruck />} />
+          <Route path="/schedule" element={<Schedule />} />
           <Route path="/rewards" element={<Rewards />} />
           <Route path="/account" element={<Account />} />
           <Route path="*" element={<Navigate to="/" replace />} />

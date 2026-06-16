@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { loadGoogleMaps } from '../lib/googleMaps'
@@ -81,6 +82,12 @@ export default function Find() {
       </div>
 
       {!mapError && <div ref={mapEl} className="map" />}
+
+      <Link to="/schedule" className="card" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit' }}>
+        <span style={{ fontSize: 22 }}>📆</span>
+        <span style={{ flex: 1, fontWeight: 600 }}>See where we'll be this week</span>
+        <span className="link" style={{ fontSize: '.85rem' }}>View ›</span>
+      </Link>
 
       {mapError && (
         <div className="card" style={{ textAlign: 'center' }}>

@@ -17,6 +17,7 @@ export default function OperatorShell({ children }) {
         <NavLink to="/admin" end>{({ isActive }) => <Tab active={isActive} ico="🏠" label="Home" />}</NavLink>
         <NavLink to="/admin/live">{({ isActive }) => <Tab active={isActive} ico="🟢" label="Go Live" />}</NavLink>
         <NavLink to="/admin/bookings">{({ isActive }) => <Tab active={isActive} ico="📅" label="Bookings" />}</NavLink>
+        <NavLink to="/admin/schedule">{({ isActive }) => <Tab active={isActive} ico="📆" label="Schedule" />}</NavLink>
         <NavLink to="/admin/games">{({ isActive }) => <Tab active={isActive} ico="🎮" label="Games" />}</NavLink>
       </nav>
     </div>

@@ -93,7 +93,7 @@ export default function Landing() {
           <h2>Catch us this week 🚚</h2>
           <p>See where we'll be ahead of time, get a text when a truck is near you, and follow your local truck for updates.</p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link className="btn btn-primary" to="/signup" style={{ width: 'auto', padding: '14px 28px' }}>See where we'll be</Link>
+            <Link className="btn btn-primary" to="/schedule" style={{ width: 'auto', padding: '14px 28px' }}>See where we'll be</Link>
             <a className="mk-fb" href={fb} target="_blank" rel="noreferrer"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 22v-8h3l1-4h-4V8c0-1.1.9-2 2-2h2V2h-3a5 5 0 0 0-5 5v3H6v4h3v8h4z"/></svg>Follow on Facebook</a>
           </div>
         </div>
