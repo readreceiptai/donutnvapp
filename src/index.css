@@ -153,6 +153,10 @@ p  { line-height: 1.5; }
 .stamps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
 .stamp { aspect-ratio: 1; border-radius: 50%; border: 2.5px dashed var(--line); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
 .stamp.filled { border-style: solid; border-color: var(--red); background: rgba(221,27,34,.08); }
+.passport-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+.passport-stop { aspect-ratio: 1; border-radius: 14px; border: 2.5px dashed var(--line); display: flex; align-items: center; justify-content: center; }
+.passport-stop.stamped { border-style: solid; border-color: var(--blue); background: rgba(10,123,193,.08); }
+.passport-num { font-family: var(--font-head); font-weight: 800; font-size: 1.2rem; color: var(--line); }
 .link { color: var(--blue); font-weight: 600; cursor: pointer; text-decoration: underline; background: none; border: none; font-size: 1rem; font-family: var(--font-body); padding: 0; }
 
 /* ============================================================================
