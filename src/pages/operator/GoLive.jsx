@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { blacklistedZone } from '../../lib/geo'
+import { geocodeAddress } from '../../lib/googleMaps'
 
 // ── Operator "Go Live" — the truck's broadcast control ──
 // Built around one principle from the plan: tie broadcasting to a deliberate
@@ -27,6 +28,7 @@ export default function GoLive() {
   const [stopName, setStopName] = useState('')
   const [hours, setHours] = useState(DEFAULT_HOURS)
   const [paused, setPaused] = useState(false)     // private-event go-dark
+  const [pinMode, setPinMode] = useState(false)   // fixed pin (no live GPS, phone free)
   const [status, setStatus] = useState('')        // ticker line
   const [suppressed, setSuppressed] = useState(false) // inside a blacklist zone
   const [startedAt, setStartedAt] = useState(null)
@@ -52,7 +54,9 @@ export default function GoLive() {
       // Resume an already-open session if the operator reloads the page.
       const { data: live } = await supabase.from('active_live_sessions').select('*')
         .eq('tenant_id', profile.tenant_id).limit(1)
-      if (live?.[0]) { setSession(live[0]); setStartedAt(new Date(live[0].started_at).getTime()); startWatch(live[0]); acquireWakeLock() }
+      // Resume an open session as a pinned spot (don't hijack the phone's GPS on
+      // reload). The operator can tap "Share live GPS" to start streaming again.
+      if (live?.[0]) { setSession(live[0]); setStartedAt(new Date(live[0].started_at).getTime()); setPinMode(true) }
     })()
     return stopWatch
   }, [profile]) // eslint-disable-line
@@ -130,9 +134,44 @@ export default function GoLive() {
       started_at: new Date().toISOString(), ends_at: ends, source: 'manual',
     }).select().single()
     if (error) { setStatus(error.message); return }
-    setSession(data); setStartedAt(Date.now()); setPaused(false)
+    setSession(data); setStartedAt(Date.now()); setPaused(false); setPinMode(false)
     startWatch(data)
     acquireWakeLock()
+  }
+
+  // Pin a fixed spot: geocode the typed location, post ONE ping so customers see
+  // a live dot there, and DON'T start GPS — the operator's phone stays free.
+  async function pinSpot() {
+    if (!truck) { setStatus('No truck set up for this territory yet.'); return }
+    if (!stopName) { setStatus('Type where you are (or pick a scheduled stop) first.'); return }
+    setStatus('Finding that spot…')
+    let coords = null
+    const picked = stops.find((s) => s.stop_name === stopName && s.lat != null && s.lng != null)
+    if (picked) coords = { lat: picked.lat, lng: picked.lng }
+    else { try { coords = await geocodeAddress(stopName) } catch { /* not found */ } }
+    if (!coords) { setStatus(`Couldn't find "${stopName}". Add a street/city, or pick a scheduled stop.`); return }
+    const ends = new Date(Date.now() + hours * 3600000).toISOString()
+    const { data, error } = await supabase.from('live_sessions').insert({
+      tenant_id: profile.tenant_id, truck_id: truck.id,
+      stop_name: stopName, is_live: true,
+      started_at: new Date().toISOString(), ends_at: ends, source: 'manual',
+    }).select().single()
+    if (error) { setStatus(error.message); return }
+    await supabase.from('truck_locations').insert({
+      tenant_id: data.tenant_id, truck_id: data.truck_id, session_id: data.id,
+      lat: coords.lat, lng: coords.lng,
+    })
+    setSession(data); setStartedAt(Date.now()); setPaused(false); setPinMode(true)
+    setStatus(`📍 Pinned at ${stopName} — customers see you here until close. Your phone is free.`)
+  }
+
+  // From a pinned session, also start streaming live GPS from this phone.
+  function enableLiveGPS() {
+    if (!session) return
+    setPinMode(false)
+    startWatch(session)
+    acquireWakeLock()
+    setStatus('🛰️ Sharing live GPS from this phone — keep the app open.')
   }
 
   async function stop(msg) {
@@ -183,7 +222,13 @@ export default function GoLive() {
             </select>
             <div className="hint">It shuts off by itself — nothing ever broadcasts overnight.</div>
           </div>
-          <button className="btn btn-primary" onClick={open} style={{ fontSize: '1.2rem', minHeight: 60 }}>🟢 Open — start sharing</button>
+          <button className="btn btn-primary" onClick={pinSpot} style={{ fontSize: '1.15rem', minHeight: 58 }}>📍 Open here — pin this spot &amp; free my phone</button>
+          <button className="btn btn-blue" onClick={open} style={{ fontSize: '1.02rem', minHeight: 50 }}>🛰️ Open with live GPS (map follows the truck)</button>
+          <div className="hint" style={{ margin: 0, lineHeight: 1.6 }}>
+            <b>📍 Pin this spot</b> — customers see your dot right here until the close time, and your phone is totally free to use. Best for a parked truck.<br />
+            <b>🛰️ Live GPS</b> — the dot follows you in real time, but you must <b>leave this app open</b> on the truck (mount it and plug it in — the screen stays awake by itself).<br />
+            <b>🛰️ Got a tracking puck?</b> It reports your location automatically, 24/7, with no phone at all.
+          </div>
           {zones.length > 0 && <div className="success">🛡️ {zones.length} no-broadcast zone{zones.length > 1 ? 's' : ''} active (home/commissary stay hidden automatically).</div>}
         </div>
       ) : (
@@ -200,10 +245,20 @@ export default function GoLive() {
           </div>
 
           {status && <div className={suppressed ? 'error' : 'success'}>{status}</div>}
-          {showNudge && <div className="error">🔔 Still serving? You're still live. Tap Close when you leave.</div>}
-          <p className="muted" style={{ fontSize: '.8rem', textAlign: 'center', margin: 0 }}>
-            📱 The screen stays awake while you're live — mount &amp; plug in the truck phone and tracking runs hands-free.
-          </p>
+          {!pinMode && showNudge && <div className="error">🔔 Still serving? You're still live. Tap Close when you leave.</div>}
+
+          {pinMode ? (
+            <div className="card" style={{ margin: 0 }}>
+              <p className="muted" style={{ margin: 0, fontSize: '.85rem' }}>
+                📍 You're pinned at <b>{session.stop_name}</b>. Customers see your dot here and your phone is free — it auto-closes at the set time.
+              </p>
+              <button className="btn btn-blue" style={{ marginTop: 10 }} onClick={enableLiveGPS}>🛰️ Switch to live GPS (follow the truck)</button>
+            </div>
+          ) : (
+            <p className="muted" style={{ fontSize: '.8rem', textAlign: 'center', margin: 0 }}>
+              📱 Streaming live GPS — keep this app open & the phone awake (it stays awake by itself). Mount &amp; plug in the truck phone.
+            </p>
+          )}
 
           <button className="btn btn-blue" onClick={togglePause}>{paused ? '▶️ Resume broadcast' : '⏸️ Go dark (private event)'}</button>
           <button className="btn btn-primary" onClick={() => stop()} style={{ background: 'var(--red-deep)' }}>🔴 Close — stop sharing</button>

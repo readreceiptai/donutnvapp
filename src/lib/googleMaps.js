@@ -15,3 +15,20 @@ export function loadGoogleMaps() {
   })
   return promise
 }
+
+// Turn a typed place/address into { lat, lng } using Google's geocoder.
+// Used by "pin a fixed spot" on Go Live so a typed location becomes a map dot.
+export async function geocodeAddress(address) {
+  const maps = await loadGoogleMaps()
+  const geocoder = new maps.Geocoder()
+  return new Promise((resolve, reject) => {
+    geocoder.geocode({ address }, (results, status) => {
+      if (status === 'OK' && results && results[0]) {
+        const loc = results[0].geometry.location
+        resolve({ lat: loc.lat(), lng: loc.lng(), formatted: results[0].formatted_address })
+      } else {
+        reject(new Error('geocode-failed:' + status))
+      }
+    })
+  })
+}
