@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, isConfigured } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { CONSENT_TEXT, CONSENT_VERSION } from '../lib/consentText'
 import { normalizePhone } from './Login'
+import { isLikelyBot, honeypotStyle } from '../lib/antibot'
 
 // The owned-list capture. We collect phone + name + email + ZIP + birthday in one
 // friendly screen, then verify the phone with a one-time code (which also creates
@@ -15,9 +16,10 @@ export default function SignUp() {
   const [f, setF] = useState({
     firstName: '', lastName: '', phone: '', email: '', zip: '',
     bMonth: '', bDay: '', bYear: '',
-    parentEmail: '',
+    parentEmail: '', company: '', // company = honeypot (hidden)
     marketingSms: true, marketingEmail: true,
   })
+  const startedAt = useRef(Date.now())
   const [code, setCode] = useState('')
   const [stage, setStage] = useState('form') // 'form' | 'verify'
   const [busy, setBusy] = useState(false)
@@ -34,6 +36,7 @@ export default function SignUp() {
   async function start(e) {
     e.preventDefault()
     setErr('')
+    if (isLikelyBot({ honeypot: f.company, startedAt: startedAt.current })) return // silent
     if (!isConfigured) { setErr('App not connected to Supabase yet — add your keys in .env, then try again.'); return }
     if (!f.firstName || !f.phone || !f.email || !f.zip) { setErr('Please fill in your name, phone, email, and ZIP.'); return }
     if (age === null) { setErr('Please pick your birthday — that\'s how you get your birthday treat 🎂'); return }
@@ -112,6 +115,8 @@ export default function SignUp() {
       <p className="muted" style={{ marginTop: -6 }}>Takes about 30 seconds. We'll text you a code to confirm.</p>
 
       <form className="card stack" onSubmit={start} style={{ marginTop: 12 }}>
+        <input type="text" name="company" tabIndex={-1} autoComplete="off" aria-hidden="true"
+          style={honeypotStyle} value={f.company} onChange={set('company')} />
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1, margin: 0 }}>
             <label>First name <span className="req">*</span></label>

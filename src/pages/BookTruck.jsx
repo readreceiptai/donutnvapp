@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import BrandLogo from '../components/BrandLogo'
 import { BOOKING_CONSENT, CONSENT_VERSION } from '../lib/consentText'
 import { normalizePhone } from './Login'
+import { isLikelyBot, honeypotStyle } from '../lib/antibot'
 
 // Book-a-truck form. Fields mirror donutnv.com/book-a-truck exactly so the app
 // collects the same information as the website. On submit it saves the booking
@@ -16,8 +17,9 @@ export default function BookTruck() {
     firstName: profile?.first_name || '', lastName: profile?.last_name || '',
     email: profile?.email || '', phone: profile?.phone || '',
     eventDate: '', startTime: '', attendance: '', zip: profile?.zip || '', details: '',
-    customerCareSms: false, optionalMarketing: false,
+    customerCareSms: false, optionalMarketing: false, company: '', // company = honeypot
   })
+  const startedAt = useRef(Date.now())
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
   const [err, setErr] = useState('')
@@ -29,6 +31,7 @@ export default function BookTruck() {
   async function submit(e) {
     e.preventDefault()
     setErr('')
+    if (isLikelyBot({ honeypot: f.company, startedAt: startedAt.current })) return // silent
     if (!isConfigured) { setErr('Not connected to Supabase yet — add your keys in .env.'); return }
     if (!f.firstName || !f.lastName || !f.email || !f.zip || !f.details) {
       setErr('Please fill in your name, email, ZIP code, and a little about your event.'); return
@@ -71,6 +74,8 @@ export default function BookTruck() {
       <p className="muted" style={{ marginTop: -6 }}>Tell us about your event and we'll get right back to you.</p>
 
       <form className="card stack" onSubmit={submit}>
+        <input type="text" name="company" tabIndex={-1} autoComplete="off" aria-hidden="true"
+          style={honeypotStyle} value={f.company} onChange={set('company')} />
         <div style={{ display: 'flex', gap: 10 }}>
           <Field label="First name *" grow><input className="fld" value={f.firstName} onChange={set('firstName')} required /></Field>
           <Field label="Last name *" grow><input className="fld" value={f.lastName} onChange={set('lastName')} required /></Field>
