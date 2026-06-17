@@ -51,6 +51,8 @@ export default function App() {
   // The marketing landing is full-width and carries its OWN awning, so the
   // global phone-width awning is suppressed there.
   const onLanding = (path === '/' || path === '') && (PREVIEW || !session)
+  // ELLE is its own full-screen product with its own dark skin — no DonutNV chrome.
+  const onElle = path === '/elle'
 
   let content
   if (PREVIEW) {
@@ -75,7 +77,7 @@ export default function App() {
         <Route path="/admin/corporate" element={<OperatorShell><OpCorporate /></OperatorShell>} />
         <Route path="/admin/customers" element={<OperatorShell><OpCustomers /></OperatorShell>} />
         <Route path="/admin/games" element={<OperatorShell><Campaigns /></OperatorShell>} />
-        <Route path="/elle" element={<OperatorShell><Elle /></OperatorShell>} />
+        <Route path="/elle" element={<Elle />} />
         <Route path="*" element={<Navigate to="/preview" replace />} />
       </Routes>
     )
@@ -127,5 +129,5 @@ export default function App() {
     )
   }
 
-  return (<>{!onLanding && <AwningBar />}<Suspense fallback={<Loading />}>{content}</Suspense></>)
+  return (<>{!onLanding && !onElle && <AwningBar />}<Suspense fallback={<Loading />}>{content}</Suspense></>)
 }
