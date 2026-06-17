@@ -10,6 +10,7 @@ export default function AdminHome() {
   const [stats, setStats] = useState({ customers: null })
   const [liveTrucks, setLiveTrucks] = useState([])
   const [wallet, setWallet] = useState(null)
+  const [pulse, setPulse] = useState(null)
 
   const load = useCallback(async () => {
     if (!profile) return
@@ -22,6 +23,8 @@ export default function AdminHome() {
     setLiveTrucks(live || [])
     const { data: w } = await supabase.rpc('get_wallet_metrics', { p_tenant: profile.tenant_id })
     setWallet(Array.isArray(w) ? w[0] : w)
+    const { data: p } = await supabase.rpc('get_territory_pulse', { p_tenant: profile.tenant_id })
+    setPulse(Array.isArray(p) ? p[0] : p)
   }, [profile])
 
   useEffect(() => { load() }, [load])
@@ -40,6 +43,28 @@ export default function AdminHome() {
         <Stat label="Customers" value={stats.customers} />
         <Stat label="Trucks live now" value={liveTrucks.length} />
       </div>
+
+      {pulse && (
+        <div className="card" style={{ borderTop: '4px solid var(--blue)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <h2 style={{ margin: 0 }}>📈 Your territory this week</h2>
+            {Number(pulse.signups_today) > 0 && (
+              <span className="muted" style={{ fontSize: '.82rem' }}>+{Number(pulse.signups_today)} today</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 10 }}>
+            <Stat label="New signups" value={Number(pulse.signups_week) || 0} />
+            <Stat label="Served" value={Number(pulse.served_week) || 0} />
+            <Stat label="Bookings" value={Number(pulse.bookings_week) || 0} />
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+            <Stat label="Reviews" value={Number(pulse.reviews_week) || 0} />
+            <Stat label="Wallet adds" value={Number(pulse.wallet_week) || 0} />
+            <Stat label="Sales" value={`$${(((Number(pulse.revenue_week_cents) || 0)) / 100).toFixed(0)}`} />
+          </div>
+          <p className="muted" style={{ fontSize: '.78rem', margin: '8px 0 0' }}>Last 7 days. We can text/email you this recap automatically.</p>
+        </div>
+      )}
 
       {/* Admin kill switch */}
       <div className="card card-accent">
