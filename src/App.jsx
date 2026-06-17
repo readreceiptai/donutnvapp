@@ -26,6 +26,7 @@ const OpSchedule = lazy(() => import('./pages/operator/Schedule'))
 const OpReviews = lazy(() => import('./pages/operator/Reviews'))
 const OpCorporate = lazy(() => import('./pages/operator/Corporate'))
 const OpCustomers = lazy(() => import('./pages/operator/Customers'))
+const Elle = lazy(() => import('./pages/operator/Elle'))
 const Preview = lazy(() => import('./pages/Preview'))
 
 function Loading() {
@@ -44,7 +45,7 @@ function previewEnabled() {
 }
 
 export default function App() {
-  const { session, profile, loading } = useAuth()
+  const { session, profile, entitlements, loading } = useAuth()
   const location = useLocation()
   const PREVIEW = previewEnabled()
   const path = location.pathname
@@ -75,6 +76,7 @@ export default function App() {
         <Route path="/admin/corporate" element={<OperatorShell><OpCorporate /></OperatorShell>} />
         <Route path="/admin/customers" element={<OperatorShell><OpCustomers /></OperatorShell>} />
         <Route path="/admin/games" element={<OperatorShell><Campaigns /></OperatorShell>} />
+        <Route path="/elle" element={<OperatorShell><Elle /></OperatorShell>} />
         <Route path="*" element={<Navigate to="/preview" replace />} />
       </Routes>
     )
@@ -106,6 +108,7 @@ export default function App() {
           <Route path="/admin/corporate" element={<OpCorporate />} />
           <Route path="/admin/customers" element={<OpCustomers />} />
           <Route path="/admin/games" element={<Campaigns />} />
+          {entitlements?.elle && <Route path="/elle" element={<Elle />} />}
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
       </OperatorShell>

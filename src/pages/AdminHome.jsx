@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 // Operator dashboard home (inside OperatorShell). Real numbers + the admin
 // KILL SWITCH: stop any truck that's broadcasting, from anywhere.
 export default function AdminHome() {
-  const { profile, tenant, signOut } = useAuth()
+  const { profile, tenant, entitlements, signOut } = useAuth()
   const [stats, setStats] = useState({ customers: null })
   const [liveTrucks, setLiveTrucks] = useState([])
   const [wallet, setWallet] = useState(null)
@@ -71,6 +71,10 @@ export default function AdminHome() {
             Revenue from members who carry the wallet card — your justification for the $99/yr. Lights up once passes go live.
           </p>
         </div>
+      )}
+
+      {entitlements?.elle && (
+        <Link to="/elle" className="btn btn-primary" style={{ background: 'var(--brand, #e91e63)' }}>🎯 ELLE — My Events</Link>
       )}
 
       <Link to="/admin/live" className="btn btn-primary">🟢 Go to broadcast controls</Link>

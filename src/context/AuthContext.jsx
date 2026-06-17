@@ -43,8 +43,13 @@ export function AuthProvider({ children }) {
 
   const signOut = () => supabase.auth.signOut()
 
+  // What this tenant is entitled to. A franchisee can buy the DonutNV ops/customer
+  // app, ELLE, or both — these gate nav + routes. has_app defaults true so existing
+  // tenants keep the app; has_elle is opt-in per purchase.
+  const entitlements = { app: tenant ? tenant.has_app !== false : true, elle: !!tenant?.has_elle }
+
   return (
-    <AuthContext.Provider value={{ session, profile, tenant, loading, reloadProfile: () => loadProfile(session?.user?.id), signOut }}>
+    <AuthContext.Provider value={{ session, profile, tenant, entitlements, loading, reloadProfile: () => loadProfile(session?.user?.id), signOut }}>
       {children}
     </AuthContext.Provider>
   )
