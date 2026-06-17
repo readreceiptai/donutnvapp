@@ -154,7 +154,7 @@ export default function Bookings() {
           )}
           {b.ghl_contact_id
             ? <div className="muted" style={{ fontSize: '.75rem', marginTop: 8 }}>✓ Synced to GHL</div>
-            : <button className="link" style={{ fontSize: '.8rem', marginTop: 8 }} onClick={() => supabase.functions.invoke('ghl-sync', { body: { booking_id: b.id } }).then(() => { flash('Pushed to GHL.'); load() })}>Push to GHL</button>}
+            : <button className="link" style={{ fontSize: '.8rem', marginTop: 8 }} onClick={() => supabase.functions.invoke('ghl-sync', { body: { booking_id: b.id, token: b.tracking_token } }).then(() => { flash('Pushed to GHL.'); load() })}>Push to GHL</button>}
         </div>
       ))}
       <p className="center muted" style={{ fontSize: '.75rem' }}>{tenant?.name}</p>

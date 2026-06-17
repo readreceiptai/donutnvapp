@@ -41,22 +41,28 @@ export default function BookTruck() {
     if (TURNSTILE_ENABLED && !tsToken) { setErr('Please complete the quick "I\'m human" check below.'); return }
     setBusy(true)
     if (!(await passesTurnstile(tsToken))) { setBusy(false); setErr('Verification failed — please try the human check again.'); return }
-    const { data, error } = await supabase.from('bookings').insert({
-      tenant_id: tenant?.id, created_by: profile?.id ?? null,
-      contact_name: `${f.firstName} ${f.lastName}`.trim(),
-      contact_phone: f.phone ? normalizePhone(f.phone) : null,
-      contact_email: f.email.trim(),
-      event_date: f.eventDate || null, start_time: f.startTime || null,
-      guests: f.attendance ? parseInt(f.attendance, 10) || null : null,
-      zip: f.zip.trim(), notes: f.details,
-      sms_consent: !!f.customerCareSms, marketing_consent: !!f.optionalMarketing,
-      consent_text_version: CONSENT_VERSION,
-    }).select().single()
+    // One secure server call: inserts the booking AND routes it to the right
+    // app-active franchisee by event ZIP, returning the id + tracking token.
+    const { data, error } = await supabase.rpc('submit_booking', {
+      p_tenant: tenant?.id,
+      p_contact_name: `${f.firstName} ${f.lastName}`.trim(),
+      p_contact_phone: f.phone ? normalizePhone(f.phone) : null,
+      p_contact_email: f.email.trim(),
+      p_event_date: f.eventDate || null,
+      p_start_time: f.startTime || null,
+      p_guests: f.attendance ? parseInt(f.attendance, 10) || null : null,
+      p_zip: f.zip.trim(),
+      p_notes: f.details,
+      p_sms_consent: !!f.customerCareSms,
+      p_marketing_consent: !!f.optionalMarketing,
+      p_consent_text_version: CONSENT_VERSION,
+    })
     if (error) { setBusy(false); setErr(error.message); return }
-    // Route the lead to the right app-active franchisee by EVENT ZIP (owned →
-    // that owner; OOB → round-robin to nearest active Zs), then push to GHL.
-    await supabase.rpc('route_booking', { p_booking_id: data.id }).catch(() => {})
-    supabase.functions.invoke('ghl-sync', { body: { booking_id: data.id } }).catch(() => {})
+    const row = Array.isArray(data) ? data[0] : data
+    // Push to GHL (speed-to-lead). The tracking token authorizes this one call.
+    if (row?.id && row?.tracking_token) {
+      supabase.functions.invoke('ghl-sync', { body: { booking_id: row.id, token: row.tracking_token } }).catch(() => {})
+    }
     setBusy(false); setDone(true)
   }
 

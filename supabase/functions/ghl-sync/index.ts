@@ -29,11 +29,15 @@ const headers = {
 }
 
 Deno.serve(async (req) => {
-  const { booking_id } = await req.json().catch(() => ({}))
+  const { booking_id, token } = await req.json().catch(() => ({}))
   if (!booking_id) return json({ error: 'booking_id required' }, 400)
 
   const { data: b } = await supabase.from('bookings').select('*').eq('id', booking_id).single()
   if (!b) return json({ error: 'booking not found' }, 404)
+
+  // Authorization: caller must hold this booking's tracking token (the public
+  // booker gets it from submit_booking; operators read it off the booking).
+  if (!token || token !== b.tracking_token) return json({ error: 'unauthorized' }, 403)
 
   // Idempotency: this function is invoked from the browser right after a booking
   // is created. If it's already been synced, return early so a replay can't
