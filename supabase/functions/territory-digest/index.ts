@@ -47,7 +47,13 @@ async function digestFor(tenant: { id: string; name: string }) {
   return { tenant_id: tenant.id, name: tenant.name, signups, served, revenue_cents: revenue, bookings, reviews, wallet, text }
 }
 
+const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
+
 Deno.serve(async (req) => {
+  // Internal / scheduled use only — require the shared secret. Fail closed if unset.
+  if (!CRON_SECRET || req.headers.get('x-cron-secret') !== CRON_SECRET) {
+    return json({ error: 'forbidden' }, 403)
+  }
   const { tenant_id } = await req.json().catch(() => ({}))
 
   let tenants: { id: string; name: string }[] = []

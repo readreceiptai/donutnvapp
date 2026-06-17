@@ -16,12 +16,29 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+// Authorization: the caller must be a signed-in operator/admin of the booking's
+// tenant (or superadmin). Anyone else is rejected — this sends a real SMS.
+async function operatorOfTenant(req: Request, tenantId: string): Promise<boolean> {
+  const authz = req.headers.get('Authorization') ?? ''
+  if (!authz) return false
+  const asUser = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authz } } })
+  const { data: { user } } = await asUser.auth.getUser()
+  if (!user) return false
+  const { data: p } = await supabase.from('profiles')
+    .select('role, tenant_id, is_superadmin').eq('id', user.id).maybeSingle()
+  if (!p) return false
+  return !!p.is_superadmin || ((p.role === 'operator' || p.role === 'admin') && p.tenant_id === tenantId)
+}
+
 Deno.serve(async (req) => {
   const { booking_id, kind = 'enroute' } = await req.json().catch(() => ({}))
   if (!booking_id) return json({ error: 'booking_id required' }, 400)
 
   const { data: b } = await supabase.from('bookings').select('*').eq('id', booking_id).single()
   if (!b) return json({ error: 'booking not found' }, 404)
+
+  if (!(await operatorOfTenant(req, b.tenant_id))) return json({ error: 'unauthorized' }, 403)
 
   const base = Deno.env.get('APP_BASE_URL') || 'https://donutnvapp.com'
   const link = `${base}/track/${b.tracking_token}`
@@ -46,7 +63,7 @@ Deno.serve(async (req) => {
     body: form,
   })
   const out = await res.json().catch(() => ({}))
-  return json({ ok: res.ok, sid: out?.sid, link })
+  return json({ ok: res.ok, sid: out?.sid })
 })
 
 function json(body: unknown, status = 200) {

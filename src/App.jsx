@@ -36,12 +36,11 @@ function Loading() {
 // Staging preview: unlock every screen with no login. On if VITE_PREVIEW_MODE=1
 // or the URL has ?preview=1 (remembered for the session). Off in production.
 function previewEnabled() {
-  if (import.meta.env.VITE_PREVIEW_MODE === '1') return true
-  try {
-    const q = new URLSearchParams(window.location.search)
-    if (q.get('preview') === '1') sessionStorage.setItem('dnv_preview', '1')
-    return sessionStorage.getItem('dnv_preview') === '1'
-  } catch { return false }
+  // Preview unlocks every screen with NO login. It's allowed ONLY when the build
+  // explicitly sets VITE_PREVIEW_MODE=1 (we set that on staging). There is no
+  // ?preview=1 URL backdoor — so a production build (env var unset, as it will be
+  // for donutnvapp.com) can never be unlocked from the address bar.
+  return import.meta.env.VITE_PREVIEW_MODE === '1'
 }
 
 export default function App() {

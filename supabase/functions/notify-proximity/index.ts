@@ -47,7 +47,13 @@ async function geocodeZip(zip: string): Promise<{ lat: number; lng: number } | n
   } catch { return null }
 }
 
-Deno.serve(async () => {
+const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
+
+Deno.serve(async (req) => {
+  // Internal / scheduled use only — require the shared secret. Fail closed if unset.
+  if (!CRON_SECRET || req.headers.get('x-cron-secret') !== CRON_SECRET) {
+    return new Response('forbidden', { status: 403 })
+  }
   // 1) Live trucks + their latest position.
   const { data: sessions } = await supabase.from('active_live_sessions').select('*')
   const { data: locs } = await supabase.from('truck_latest_location').select('*')

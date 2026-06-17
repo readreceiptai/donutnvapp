@@ -18,7 +18,7 @@ export default function SignUp() {
     firstName: '', lastName: '', phone: '', email: '', zip: '',
     bMonth: '', bDay: '', bYear: '',
     parentEmail: '', company: '', // company = honeypot (hidden)
-    marketingSms: true, marketingEmail: true,
+    marketingSms: false, marketingEmail: false, // opt-in only (TCPA/CASL: no pre-check)
   })
   const startedAt = useRef(Date.now())
   const [code, setCode] = useState('')
@@ -73,14 +73,16 @@ export default function SignUp() {
       first_name: f.firstName, last_name: f.lastName || null,
       phone: normalizePhone(f.phone), email: f.email.trim(), zip: f.zip.trim(),
       birthday,
+      parent_email: isMinor ? f.parentEmail.trim() : null, // COPPA: keep the guardian on file
     })
     if (pErr) { setBusy(false); setErr(pErr.message); return }
 
     // 2) Consent records — exact wording + version stored for the paper trail.
+    // Minors never get marketing consent, even if a box was somehow set.
     const consents = [
       { kind: 'transactional_sms', granted: true }, // required to use alerts/account
-      { kind: 'marketing_sms', granted: !!f.marketingSms },
-      { kind: 'marketing_email', granted: !!f.marketingEmail },
+      { kind: 'marketing_sms', granted: !isMinor && !!f.marketingSms },
+      { kind: 'marketing_email', granted: !isMinor && !!f.marketingEmail },
     ].map((c) => ({
       profile_id: uid, tenant_id: tenantId, kind: c.kind, granted: c.granted,
       text_version: CONSENT_VERSION, source: 'signup',
