@@ -59,6 +59,16 @@ Deno.serve(async (req) => {
   const event = (() => { try { return JSON.parse(rawBody) } catch { return null } })()
   if (!event) return new Response('bad request', { status: 400 })
 
+  // 1b) Idempotency: Square delivers at-least-once. Record the event id and skip
+  //     duplicates so buzz counts / loyalty stamps / deposit flips fire only once.
+  const eventId: string | undefined = event?.event_id
+  if (eventId) {
+    const { error: dupErr } = await supabase.from('processed_square_events').insert({ event_id: eventId })
+    if (dupErr && (dupErr as { code?: string }).code === '23505') {
+      return new Response(JSON.stringify({ ok: true, duplicate: true }), { headers: { 'content-type': 'application/json' } })
+    }
+  }
+
   // 2) Pull what we need from the Square event. Field paths depend on the event
   //    type you subscribe to; payment.created carries buyer + location info.
   const payment = event?.data?.object?.payment ?? {}
@@ -75,8 +85,12 @@ Deno.serve(async (req) => {
   const paymentDone = ['COMPLETED', 'APPROVED', 'CAPTURED'].includes(String(payment.status || '').toUpperCase())
   if (orderId && paymentDone) {
     const { data: dep } = await supabase.from('bookings')
-      .select('id, deposit_status').eq('square_order_id', orderId).maybeSingle()
-    if (dep && dep.deposit_status !== 'paid') {
+      .select('id, deposit_status, deposit_amount_cents').eq('square_order_id', orderId).maybeSingle()
+    // Only mark paid if the payment actually covers the requested deposit
+    // (guards against a short/partial payment flipping it to paid).
+    if (dep && dep.deposit_status !== 'paid'
+        && amountCents != null
+        && (dep.deposit_amount_cents == null || amountCents >= dep.deposit_amount_cents)) {
       await supabase.from('bookings').update({
         deposit_status: 'paid', deposit_paid_at: new Date().toISOString(),
       }).eq('id', dep.id)

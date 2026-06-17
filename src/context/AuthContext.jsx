@@ -36,7 +36,10 @@ export function AuthProvider({ children }) {
     })
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s)
-      loadProfile(s?.user?.id)
+      // Re-enter loading while the profile reloads so we never flash the wrong
+      // app (e.g. an operator briefly seeing the customer shell right after login).
+      setLoading(true)
+      loadProfile(s?.user?.id).finally(() => setLoading(false))
     })
     return () => sub.subscription.unsubscribe()
   }, [loadProfile])

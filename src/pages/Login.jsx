@@ -35,7 +35,7 @@ export default function Login() {
 
   return (
     <div className="screen pad-top">
-      <Link to="/welcome" className="link" style={{ display: 'inline-block', marginBottom: 14 }}>← Back</Link>
+      <Link to="/" className="link" style={{ display: 'inline-block', marginBottom: 14 }}>← Back</Link>
       <h1>Welcome back</h1>
 
       {stage === 'enter' && (

@@ -117,7 +117,7 @@ export default function SignUp() {
 
   return (
     <div className="screen pad-top">
-      <Link to="/welcome" className="link" style={{ display: 'inline-block', marginBottom: 12 }}>← Back</Link>
+      <Link to="/" className="link" style={{ display: 'inline-block', marginBottom: 12 }}>← Back</Link>
       <h1>Join the donut club</h1>
       <p className="muted" style={{ marginTop: -6 }}>Takes about 30 seconds. We'll email you a code to confirm.</p>
 
