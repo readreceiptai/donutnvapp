@@ -63,34 +63,26 @@ export default function SignUp() {
     })
     if (error) { setBusy(false); setErr(error.message); return }
 
-    const uid = data.user?.id
     const tenantId = tenant?.id
     const birthday = `${f.bYear}-${String(f.bMonth).padStart(2, '0')}-${String(f.bDay).padStart(2, '0')}`
 
-    // 1) The profile row — this is the owned customer record.
-    const { error: pErr } = await supabase.from('profiles').upsert({
-      id: uid, tenant_id: tenantId,
-      first_name: f.firstName, last_name: f.lastName || null,
-      phone: normalizePhone(f.phone), email: f.email.trim(), zip: f.zip.trim(),
-      birthday,
-      parent_email: isMinor ? f.parentEmail.trim() : null, // COPPA: keep the guardian on file
+    // One atomic write: profile + consent records + home area, in a single
+    // transaction (so a legally-required consent record can't be silently lost).
+    // Minors never get marketing consent. The verified email drives any elevation.
+    const { error: sErr } = await supabase.rpc('complete_signup', {
+      p_tenant: tenantId,
+      p_first_name: f.firstName,
+      p_last_name: f.lastName || null,
+      p_phone: normalizePhone(f.phone),
+      p_email: f.email.trim(),
+      p_zip: f.zip.trim(),
+      p_birthday: birthday,
+      p_parent_email: isMinor ? f.parentEmail.trim() : null,
+      p_marketing_sms: !isMinor && !!f.marketingSms,
+      p_marketing_email: !isMinor && !!f.marketingEmail,
+      p_consent_version: CONSENT_VERSION,
     })
-    if (pErr) { setBusy(false); setErr(pErr.message); return }
-
-    // 2) Consent records — exact wording + version stored for the paper trail.
-    // Minors never get marketing consent, even if a box was somehow set.
-    const consents = [
-      { kind: 'transactional_sms', granted: true }, // required to use alerts/account
-      { kind: 'marketing_sms', granted: !isMinor && !!f.marketingSms },
-      { kind: 'marketing_email', granted: !isMinor && !!f.marketingEmail },
-    ].map((c) => ({
-      profile_id: uid, tenant_id: tenantId, kind: c.kind, granted: c.granted,
-      text_version: CONSENT_VERSION, source: 'signup',
-    }))
-    await supabase.from('consents').insert(consents)
-
-    // 3) Their home ZIP as a saved area → powers proximity alerts later.
-    if (f.zip) await supabase.from('saved_areas').insert({ profile_id: uid, tenant_id: tenantId, label: 'Home', zip: f.zip.trim() })
+    if (sErr) { setBusy(false); setErr(sErr.message); return }
 
     await reloadProfile()
     setBusy(false)
