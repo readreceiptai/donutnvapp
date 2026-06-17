@@ -1,8 +1,10 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import AppShell from './components/AppShell'
 import OperatorShell from './components/OperatorShell'
 import AwningBar from './components/AwningBar'
+// Customer + auth screens stay eager — they're the common path and small.
 import Landing from './pages/Landing'
 import SignUp from './pages/SignUp'
 import Login from './pages/Login'
@@ -10,18 +12,25 @@ import OwnerLogin from './pages/OwnerLogin'
 import Find from './pages/Find'
 import Rewards from './pages/Rewards'
 import Account from './pages/Account'
-import AdminHome from './pages/AdminHome'
-import GoLive from './pages/operator/GoLive'
-import Campaigns from './pages/operator/Campaigns'
-import Bookings from './pages/operator/Bookings'
 import BookTruck from './pages/BookTruck'
 import TrackEvent from './pages/TrackEvent'
 import Schedule from './pages/Schedule'
-import OpSchedule from './pages/operator/Schedule'
-import OpReviews from './pages/operator/Reviews'
-import OpCorporate from './pages/operator/Corporate'
-import OpCustomers from './pages/operator/Customers'
-import Preview from './pages/Preview'
+// Operator + preview screens are code-split into their own chunks, so customers
+// never download the franchisee/ELLE/admin code (and vice-versa). As the second
+// app (ELLE) grows, its route lazy-loads here too.
+const AdminHome = lazy(() => import('./pages/AdminHome'))
+const GoLive = lazy(() => import('./pages/operator/GoLive'))
+const Campaigns = lazy(() => import('./pages/operator/Campaigns'))
+const Bookings = lazy(() => import('./pages/operator/Bookings'))
+const OpSchedule = lazy(() => import('./pages/operator/Schedule'))
+const OpReviews = lazy(() => import('./pages/operator/Reviews'))
+const OpCorporate = lazy(() => import('./pages/operator/Corporate'))
+const OpCustomers = lazy(() => import('./pages/operator/Customers'))
+const Preview = lazy(() => import('./pages/Preview'))
+
+function Loading() {
+  return <div className="screen pad-top center"><p className="muted" style={{ marginTop: '40vh' }}>Loading…</p></div>
+}
 
 // Staging preview: unlock every screen with no login. On if VITE_PREVIEW_MODE=1
 // or the URL has ?preview=1 (remembered for the session). Off in production.
@@ -116,5 +125,5 @@ export default function App() {
     )
   }
 
-  return (<>{!onLanding && <AwningBar />}{content}</>)
+  return (<>{!onLanding && <AwningBar />}<Suspense fallback={<Loading />}>{content}</Suspense></>)
 }

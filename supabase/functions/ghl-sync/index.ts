@@ -55,6 +55,10 @@ Deno.serve(async (req) => {
       source: 'DonutNV App — Book a Truck',
       tags: [
         'donutnv-app', 'event-lead', b.event_type,
+        // 'speed-to-lead' is the trigger tag: point a GHL workflow at it to fire
+        // the immediate inbound text/email sequence the second a booking lands,
+        // teeing the franchisee up for a 1-call close.
+        'book-a-truck-lead', 'speed-to-lead',
         b.sms_consent ? 'sms-opt-in' : null,
         b.marketing_consent ? 'marketing-opt-in' : null,
       ].filter(Boolean),
