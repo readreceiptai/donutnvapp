@@ -65,6 +65,9 @@ Deno.serve(async (req) => {
   const phone: string | undefined = payment.buyer_phone_number
   const squareLocationId: string | undefined = payment.location_id
   const orderId: string | undefined = payment.order_id
+  // Square reports money in the smallest currency unit (cents) already.
+  const amountCents: number | null = Number.isFinite(payment?.amount_money?.amount)
+    ? Number(payment.amount_money.amount) : null
 
   // 2b) Is this the payment for an event deposit we requested? Match by the
   //     Square order id we stored when creating the payment link, and only when
@@ -91,7 +94,7 @@ Deno.serve(async (req) => {
     .select('id').eq('tenant_id', tenant.id).eq('is_live', true)
     .gt('ends_at', new Date().toISOString()).limit(1).maybeSingle()
   await supabase.from('sales_events').insert({
-    tenant_id: tenant.id, session_id: live?.id ?? null, source: 'square',
+    tenant_id: tenant.id, session_id: live?.id ?? null, source: 'square', amount_cents: amountCents,
   })
 
   // 5) If the buyer is in our owned list (matched by phone), also stamp their card.
@@ -104,8 +107,13 @@ Deno.serve(async (req) => {
         .order('created_at', { ascending: false }).limit(1).maybeSingle()
       await supabase.from('check_ins').insert({
         profile_id: profile.id, tenant_id: tenant.id,
-        campaign_id: campaign?.id ?? null, source: 'square',
+        campaign_id: campaign?.id ?? null, source: 'square', amount_cents: amountCents,
       })
+      // Their stamp count changed → flag their wallet pass so the next push
+      // job refreshes the stamp total on their phone. (No-op until passes exist.)
+      await supabase.from('wallet_passes')
+        .update({ needs_push: true, updated_at: new Date().toISOString() })
+        .eq('profile_id', profile.id)
     }
   }
 

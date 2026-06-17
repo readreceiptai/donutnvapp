@@ -9,6 +9,7 @@ export default function AdminHome() {
   const { profile, tenant, signOut } = useAuth()
   const [stats, setStats] = useState({ customers: null })
   const [liveTrucks, setLiveTrucks] = useState([])
+  const [wallet, setWallet] = useState(null)
 
   const load = useCallback(async () => {
     if (!profile) return
@@ -19,6 +20,8 @@ export default function AdminHome() {
     const { data: live } = await supabase.from('active_live_sessions').select('*')
       .eq('tenant_id', profile.tenant_id)
     setLiveTrucks(live || [])
+    const { data: w } = await supabase.rpc('get_wallet_metrics', { p_tenant: profile.tenant_id })
+    setWallet(Array.isArray(w) ? w[0] : w)
   }, [profile])
 
   useEffect(() => { load() }, [load])
@@ -55,6 +58,20 @@ export default function AdminHome() {
           ))
         )}
       </div>
+
+      {wallet && (
+        <div className="card" style={{ borderTop: '4px solid var(--brand, #e91e63)' }}>
+          <h2 style={{ marginBottom: 6 }}>📲 Wallet passes</h2>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <Stat label="Installed" value={Number(wallet.passes_installed) || 0} />
+            <Stat label="Wallet members" value={Number(wallet.wallet_members) || 0} />
+            <Stat label="Their spend" value={`$${(((Number(wallet.wallet_member_revenue_cents) || 0)) / 100).toFixed(0)}`} />
+          </div>
+          <p className="muted" style={{ fontSize: '.8rem', margin: '8px 0 0' }}>
+            Revenue from members who carry the wallet card — your justification for the $99/yr. Lights up once passes go live.
+          </p>
+        </div>
+      )}
 
       <Link to="/admin/live" className="btn btn-primary">🟢 Go to broadcast controls</Link>
       <Link to="/admin/games" className="btn btn-blue">🎮 Manage games & rewards</Link>

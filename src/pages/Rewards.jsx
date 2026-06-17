@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import MiniDonut from '../components/MiniDonut'
+import AddToWallet from '../components/AddToWallet'
 
 // Earn & Play. The transactional points live in Square Loyalty (tied to the
 // register). This screen shows the *gamified* layer the app owns:
@@ -58,6 +59,8 @@ export default function Rewards() {
 
       {stamp && <StampCard campaign={stamp} count={stampCount} />}
       {passport && <Passport campaign={passport} stops={passportStops} />}
+
+      <AddToWallet />
 
       <div className="card">
         <h2 style={{ marginBottom: 6 }}>How points work</h2>
