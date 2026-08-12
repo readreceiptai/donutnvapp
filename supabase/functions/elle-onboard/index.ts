@@ -1,16 +1,7 @@
 // ── ELLE onboard — Supabase Edge Function ──
 // Creates an ELLE tenant for a franchisee (called once when they activate ELLE).
-// NOTE: the franchisee never picks sources here (those stay internal); we only
-// take territory ZIPs, event-type interests, plan tier, and an optional
-// free-text "events/sources to watch" suggestion (routed to an internal queue).
-//
-// Deploy:  supabase functions deploy elle-onboard
-// Secrets: ELLE_SUPABASE_URL, ELLE_SERVICE_ROLE_KEY
-//
-// Call (authenticated): POST {
-//   franchise_name, franchise_id?, zips[], surrounding_zips?[], event_types[],
-//   plan_tier ('basic'|'pro'|'agency'), suggestion?
-// }
+// The franchisee never picks sources here (those stay internal); we only take
+// territory ZIPs, event-type interests, plan tier, and an optional suggestion.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -21,7 +12,7 @@ const ELLE_KEY = Deno.env.get('ELLE_SERVICE_ROLE_KEY') ?? ''
 
 const CORS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-headers': 'authorization, content-type, apikey',
+  'access-control-allow-headers': 'authorization, content-type, apikey, x-client-info, x-supabase-api-version',
   'access-control-allow-methods': 'POST, OPTIONS',
 }
 function json(body: unknown, status = 200) {
@@ -45,7 +36,6 @@ Deno.serve(async (req) => {
 
   const elle = createClient(ELLE_URL, ELLE_KEY, { auth: { persistSession: false } })
 
-  // Don't double-create.
   const { data: existing } = await elle.from('elle_tenants')
     .select('id').eq('primary_contact_email', user.email).maybeSingle()
   if (existing) return json({ ok: true, tenant_id: existing.id, alreadyOnboarded: true })
@@ -68,10 +58,8 @@ Deno.serve(async (req) => {
     )
   }
 
-  // REQUIRED: default scoring params, or ranking runs on NULLs.
   await elle.from('elle_tenant_params').insert({ tenant_id: tenant.id, email_for_digest: user.email })
 
-  // Optional franchisee suggestion → internal notes (never shown back as a source list).
   if (suggestion && String(suggestion).trim()) {
     await elle.from('elle_tenant_params').update({ notes: `Onboarding suggestion: ${String(suggestion).trim()}` }).eq('tenant_id', tenant.id)
   }

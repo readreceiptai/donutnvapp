@@ -1,4 +1,8 @@
-// ── ELLE dashboard — Edge Function (v14: business feed carries org_type / fundraiser-target fields) ──
+// ── ELLE dashboard — Edge Function (v7: + event_url passthrough, info_bad flag, lead_outcome) ──
+// Franchisee sees only their territory. Superadmin can pass tenant_id='ALL' to
+// see every territory's leads (each tagged with its franchise), and gets the
+// territory list for the switcher. Handles preference actions (mute/unmute,
+// won-learning), a low-friction bad-info flag, and lead lifecycle outcomes.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -36,12 +40,6 @@ function tag(r: any, franchise?: string) {
   return { ...r, segment: PUBLIC_EVENT_TYPES.has(r.event_type) ? 'event' : 'account', territory: franchise ?? null }
 }
 
-async function elleFn(name: string, payload: unknown) {
-  const r = await fetch(`${ELLE_URL}/functions/v1/${name}`, { method: 'POST', headers: { Authorization: `Bearer ${ELLE_KEY}`, 'content-type': 'application/json' }, body: JSON.stringify(payload) })
-  const j = await r.json().catch(() => ({}))
-  return { ok: r.ok, status: r.status, result: j }
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
@@ -51,12 +49,14 @@ Deno.serve(async (req) => {
   if (!ELLE_URL || !ELLE_KEY) return json({ configured: false }, 200)
   const elle = createClient(ELLE_URL, ELLE_KEY, { auth: { persistSession: false } })
 
+  // Territory list for the superadmin switcher.
   let tenants: any[] | null = null
   if (c.isSuper) {
     const { data: list } = await elle.from('elle_tenants').select('id, franchise_name').eq('enabled', true).order('franchise_name')
     tenants = list ?? []
   }
 
+  // Resolve the tenant to act on (own, chosen-by-superadmin, or ALL).
   const wantAll = c.isSuper && body.tenant_id === 'ALL'
   let tenant: any = null
   if (!wantAll) {
@@ -74,91 +74,39 @@ Deno.serve(async (req) => {
     if (!tenant) return json({ needsOnboarding: true, isSuperadmin: c.isSuper, tenants }, 200)
   }
 
-  if (body.view === 'turned_down' && c.isSuper) {
-    let q = elle.from('elle_tenant_events')
-      .select('tenant_id, event_id, dismissed_at, decision, prior_outcome, score, elle_events(name, city, event_type, start_date, estimated_attendance)')
-      .eq('dismissed', true).order('dismissed_at', { ascending: false }).limit(500)
-    if (!wantAll && tenant) q = q.eq('tenant_id', tenant.id)
-    const { data } = await q
-    const nameById: Record<string, string> = {}
-    for (const t of tenants ?? []) nameById[t.id] = t.franchise_name
-    const rows = (data ?? []).map((r: any) => ({
-      tenant_id: r.tenant_id, franchise: nameById[r.tenant_id] ?? 'Unknown', event_id: r.event_id,
-      dismissed_at: r.dismissed_at, decision: r.decision, prior_outcome: r.prior_outcome, score: r.score,
-      name: r.elle_events?.name, city: r.elle_events?.city, event_type: r.elle_events?.event_type,
-      start_date: r.elle_events?.start_date, estimated_attendance: r.elle_events?.estimated_attendance,
-    }))
-    return json({ turned_down: rows, tenant: wantAll ? { id: 'ALL', franchise_name: 'All Territories' } : tenant, isSuperadmin: true, tenants })
-  }
-
-  if (body.action === 'biz_decision' && !wantAll && tenant && body.business_id) {
-    const dec = body.decision ?? null
-    await elle.from('elle_tenant_businesses').update({ decision: dec }).eq('tenant_id', tenant.id).eq('business_id', body.business_id)
-    return json({ ok: true })
-  }
-
-  if (body.action === 'find_linkedin' && !wantAll && tenant && body.business_id) {
-    const out = await elleFn('elle-enrich-linkedin', { business_id: body.business_id, max_contacts: 6 })
-    return json(out)
-  }
-  if (body.action === 'find_press' && !wantAll && tenant && body.business_id) {
-    const out = await elleFn('elle-press-gm', { business_id: body.business_id })
-    return json(out)
-  }
-
-  if (body.view === 'market' && !wantAll && tenant) {
-    const { data: mr } = await elle.from('elle_market_reports').select('report, generated_at, next_refresh_at').eq('tenant_id', tenant.id).maybeSingle()
-    return json({ tenant, market: mr?.report ?? null, generated_at: mr?.generated_at ?? null, next_refresh_at: mr?.next_refresh_at ?? null, isSuperadmin: c.isSuper, tenants })
-  }
-
-  // ---- Businesses view ----
-  if (body.view === 'businesses' && !wantAll && tenant) {
-    const { data: links } = await elle.from('elle_tenant_businesses')
-      .select('business_id, decision, business:elle_businesses(id, name, city, zip, phone, website, industry, employee_count, size_bucket, enrichment_status, linkedin_company_url, org_type, is_fundraiser_target, review_count)')
-      .eq('tenant_id', tenant.id)
-    const rows = links ?? []
-    const bizIds = rows.map((r: any) => r.business_id)
-    const pocsByBiz: Record<string, any[]> = {}
-    if (bizIds.length) {
-      const { data: pocs } = await elle.from('elle_business_pocs').select('business_id, name, title, seniority, email, phone, source, linkedin_url, confidence').eq('is_bad', false).in('business_id', bizIds)
-      for (const p of pocs ?? []) { (pocsByBiz[p.business_id] ??= []).push({ name: p.name, title: p.title, seniority: p.seniority, email: p.email, phone: p.phone, source: p.source, linkedin_url: p.linkedin_url, confidence: p.confidence }) }
-      for (const k of Object.keys(pocsByBiz)) pocsByBiz[k].sort((a, b) => (Number(b.confidence) || 0) - (Number(a.confidence) || 0))
-    }
-    const businesses = rows.map((r: any) => ({ ...(r.business ?? {}), decision: r.decision ?? null, pocs: pocsByBiz[r.business_id] ?? [] })).filter((b: any) => b.id)
-    businesses.sort((a: any, b: any) => (Number(b.employee_count) || 0) - (Number(a.employee_count) || 0))
-    return json({ tenant, businesses, isSuperadmin: c.isSuper, tenants })
-  }
-
+  // ---- Actions (per real tenant only, not ALL) ----
   if (!wantAll && tenant) {
     const et = String(body.event_type ?? '')
+    const eid = body.event_id ? String(body.event_id) : ''
     if (body.action === 'mute' && et) {
       await elle.from('elle_event_type_prefs').upsert({ tenant_id: tenant.id, event_type: et, enabled: false }, { onConflict: 'tenant_id,event_type' })
     } else if (body.action === 'unmute' && et) {
       await elle.from('elle_event_type_prefs').upsert({ tenant_id: tenant.id, event_type: et, enabled: true }, { onConflict: 'tenant_id,event_type' })
     } else if (body.action === 'won_learn' && et) {
+      // Reinforce: this is a type they win — nudge its weight up (capped), enable it.
       const { data: p } = await elle.from('elle_event_type_prefs').select('weight').eq('tenant_id', tenant.id).eq('event_type', et).maybeSingle()
       const w = Math.min(2.0, (Number(p?.weight) || 1.0) + 0.25)
       await elle.from('elle_event_type_prefs').upsert({ tenant_id: tenant.id, event_type: et, enabled: true, weight: w }, { onConflict: 'tenant_id,event_type' })
       await elle.rpc('elle_recompute_scores').catch(() => {})
-    } else if (body.action === 'lead_outcome' && body.event_id) {
-      const oc = (body.outcome === 'won' || body.outcome === 'lost') ? body.outcome : null
-      await elle.from('elle_tenant_events').update({ outcome: oc }).eq('tenant_id', tenant.id).eq('event_id', body.event_id)
+    } else if (body.action === 'mark_info_bad' && eid) {
+      // Z reached out and the info was bad — low-friction flag, reversible.
+      await elle.from('elle_tenant_events').update({ info_bad: true, info_bad_at: new Date().toISOString() }).eq('tenant_id', tenant.id).eq('event_id', eid)
+    } else if (body.action === 'clear_info_bad' && eid) {
+      await elle.from('elle_tenant_events').update({ info_bad: false, info_bad_at: null }).eq('tenant_id', tenant.id).eq('event_id', eid)
+    } else if (body.action === 'lead_outcome' && eid) {
+      // Lifecycle: mark a pushed lead won/lost, or reopen (null).
+      const oc = body.outcome === 'won' ? 'won' : body.outcome === 'lost' ? 'lost' : null
+      await elle.from('elle_tenant_events').update({ outcome: oc }).eq('tenant_id', tenant.id).eq('event_id', eid)
       if (oc === 'won' && et) {
         const { data: p } = await elle.from('elle_event_type_prefs').select('weight').eq('tenant_id', tenant.id).eq('event_type', et).maybeSingle()
         const w = Math.min(2.0, (Number(p?.weight) || 1.0) + 0.25)
         await elle.from('elle_event_type_prefs').upsert({ tenant_id: tenant.id, event_type: et, enabled: true, weight: w }, { onConflict: 'tenant_id,event_type' })
         await elle.rpc('elle_recompute_scores').catch(() => {})
       }
-    } else if (body.action === 'mark_info_bad' && body.event_id) {
-      await elle.from('elle_tenant_events').update({ info_bad: true, info_bad_at: new Date().toISOString() }).eq('tenant_id', tenant.id).eq('event_id', body.event_id)
-    } else if (body.action === 'clear_info_bad' && body.event_id) {
-      await elle.from('elle_tenant_events').update({ info_bad: false, info_bad_at: null }).eq('tenant_id', tenant.id).eq('event_id', body.event_id)
-    } else if (body.action === 'dismiss_lead' && body.event_id) {
-      const dis = body.dismissed !== false
-      await elle.from('elle_tenant_events').update({ dismissed: dis, dismissed_at: dis ? new Date().toISOString() : null }).eq('tenant_id', tenant.id).eq('event_id', body.event_id)
     }
   }
 
+  // ---- Build the board ----
   if (wantAll) {
     const { data: rows } = await elle.from('elle_z_dashboard').select('*').order('score', { ascending: false }).limit(400)
     const nameById: Record<string, string> = {}

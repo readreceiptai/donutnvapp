@@ -1,19 +1,11 @@
-// ── Square Loyalty sync — Supabase Edge Function ──
-// The plan: Square runs the register and the points. This webhook listens for
-// Square purchase events and turns each buy into a check-in/stamp in our app,
-// and makes sure the buyer exists in our owned list. Built last + modular, so
-// nothing else depends on it shipping.
+// ── Square Loyalty sync — Supabase Edge Function (audit-hardened) ──
+// Verifies the Square HMAC signature, parses, dedupes (idempotency), marks
+// event deposits paid (with amount + currency check), records buzz, stamps the card.
 //
-// Deploy:  supabase functions deploy square-webhook
-// In Square Developer Dashboard → Webhooks, point "payment.created" (or
-// "order.created") at this function's URL.
-// Secrets:  SQUARE_WEBHOOK_SIGNATURE_KEY  (verify the request is really Square)
-//           SQUARE_WEBHOOK_URL            (the EXACT subscription URL from Square's
-//                                          dashboard — used in the signature base)
-//   supabase secrets set SQUARE_WEBHOOK_SIGNATURE_KEY=... SQUARE_WEBHOOK_URL=...
+// verify_jwt=false is intentional: Square can't send a Supabase JWT; requests
+// are authenticated by the HMAC signature below (fail closed if key unset).
 //
-// This verifies the Square HMAC signature, parses, matches the customer by
-// phone, records an anonymous sale (buzz), and stamps the card if a member.
+// Secrets: SQUARE_WEBHOOK_SIGNATURE_KEY, SQUARE_WEBHOOK_URL (exact subscription URL)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -25,13 +17,10 @@ const supabase = createClient(
 const SIG_KEY = Deno.env.get('SQUARE_WEBHOOK_SIGNATURE_KEY') ?? ''
 
 // Square signs: base64( HMAC-SHA256( signatureKey, notificationUrl + rawBody ) )
-// and sends it in the x-square-hmacsha256-signature header. We must hash the
-// RAW request body (not re-serialized JSON) for the signature to match.
 async function verifySquare(req: Request, rawBody: string): Promise<boolean> {
   if (!SIG_KEY) return false // fail closed: no key configured = reject
   const sent = req.headers.get('x-square-hmacsha256-signature') ?? ''
   if (!sent) return false
-  // Use the exact configured URL if provided, else the request URL.
   const url = Deno.env.get('SQUARE_WEBHOOK_URL') || req.url
   const enc = new TextEncoder()
   const key = await crypto.subtle.importKey(
@@ -42,7 +31,6 @@ async function verifySquare(req: Request, rawBody: string): Promise<boolean> {
   return timingSafeEqual(expected, sent)
 }
 
-// Constant-time string compare so we don't leak the signature via timing.
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
   let diff = 0
@@ -59,8 +47,7 @@ Deno.serve(async (req) => {
   const event = (() => { try { return JSON.parse(rawBody) } catch { return null } })()
   if (!event) return new Response('bad request', { status: 400 })
 
-  // 1b) Idempotency: Square delivers at-least-once. Record the event id and skip
-  //     duplicates so buzz counts / loyalty stamps / deposit flips fire only once.
+  // 1b) Idempotency: Square delivers at-least-once — skip duplicates.
   const eventId: string | undefined = event?.event_id
   if (eventId) {
     const { error: dupErr } = await supabase.from('processed_square_events').insert({ event_id: eventId })
@@ -69,25 +56,22 @@ Deno.serve(async (req) => {
     }
   }
 
-  // 2) Pull what we need from the Square event. Field paths depend on the event
-  //    type you subscribe to; payment.created carries buyer + location info.
+  // 2) Pull what we need from the Square event.
   const payment = event?.data?.object?.payment ?? {}
   const phone: string | undefined = payment.buyer_phone_number
   const squareLocationId: string | undefined = payment.location_id
   const orderId: string | undefined = payment.order_id
-  // Square reports money in the smallest currency unit (cents) already.
   const amountCents: number | null = Number.isFinite(payment?.amount_money?.amount)
     ? Number(payment.amount_money.amount) : null
+  // Audit fix: check the currency too — a 500 of another currency isn't $5.00.
+  const currency: string = String(payment?.amount_money?.currency ?? 'USD').toUpperCase()
 
-  // 2b) Is this the payment for an event deposit we requested? Match by the
-  //     Square order id we stored when creating the payment link, and only when
-  //     Square reports the payment completed/approved.
+  // 2b) Deposit payment for a booking we created? Match by stored Square order id,
+  //     only when completed/approved, amount covers the deposit, and currency is USD.
   const paymentDone = ['COMPLETED', 'APPROVED', 'CAPTURED'].includes(String(payment.status || '').toUpperCase())
-  if (orderId && paymentDone) {
+  if (orderId && paymentDone && currency === 'USD') {
     const { data: dep } = await supabase.from('bookings')
       .select('id, deposit_status, deposit_amount_cents').eq('square_order_id', orderId).maybeSingle()
-    // Only mark paid if the payment actually covers the requested deposit
-    // (guards against a short/partial payment flipping it to paid).
     if (dep && dep.deposit_status !== 'paid'
         && amountCents != null
         && (dep.deposit_amount_cents == null || amountCents >= dep.deposit_amount_cents)) {
@@ -102,8 +86,7 @@ Deno.serve(async (req) => {
     .select('id').eq('square_location_id', squareLocationId).maybeSingle()
   if (!tenant) return new Response(JSON.stringify({ ok: true, skipped: 'unknown location', depositMatched: !!orderId }), { status: 200 })
 
-  // 4) Count EVERY sale as a customer served (anonymous) — powers the real-time
-  //    "served today" buzz whether or not the buyer is an app member.
+  // 4) Count EVERY sale as a customer served (anonymous).
   const { data: live } = await supabase.from('live_sessions')
     .select('id').eq('tenant_id', tenant.id).eq('is_live', true)
     .gt('ends_at', new Date().toISOString()).limit(1).maybeSingle()
@@ -123,8 +106,6 @@ Deno.serve(async (req) => {
         profile_id: profile.id, tenant_id: tenant.id,
         campaign_id: campaign?.id ?? null, source: 'square', amount_cents: amountCents,
       })
-      // Their stamp count changed → flag their wallet pass so the next push
-      // job refreshes the stamp total on their phone. (No-op until passes exist.)
       await supabase.from('wallet_passes')
         .update({ needs_push: true, updated_at: new Date().toISOString() })
         .eq('profile_id', profile.id)
