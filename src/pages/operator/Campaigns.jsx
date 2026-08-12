@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 // activating a game here is what makes it appear on every customer's Rewards tab.
 
 const TEMPLATES = [
-  { kind: 'checkin_stamp', emoji: '🍩', name: 'Stamp Card', blurb: 'Visit N times, earn a free treat.', fields: [['goal', 'Visits needed', 5], ['reward', 'Reward', 'A free bag of mini donuts']] },
+  { kind: 'checkin_stamp', emoji: '⭐', name: 'Stamp Card', blurb: 'Visit N times, earn a free treat.', fields: [['goal', 'Visits needed', 5], ['reward', 'Reward', 'A free bag of mini donuts']] },
   { kind: 'passport', emoji: '🗺️', name: 'Donut Passport', blurb: 'Visit N different stops to unlock a reward.', fields: [['goal', 'Different stops', 4], ['reward', 'Reward', 'A free lemonade']] },
   { kind: 'catch_the_truck', emoji: '🚚', name: 'Catch the Truck', blurb: 'Secret stop revealed at a set time — first N win.', fields: [['winners', 'Winners', 10], ['reward', 'Prize', 'Free donuts for a week']] },
   { kind: 'bonus_day', emoji: '✨', name: 'Bonus Day', blurb: 'Points multiplier on chosen days.', fields: [['multiplier', 'Multiplier', 2], ['reward', 'Note', 'Double points all day']] },

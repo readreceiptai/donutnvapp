@@ -6,13 +6,16 @@
 // A territory maps 1:1 to a `tenants.slug` row in the database, so adding a
 // franchise = adding a row + pointing their vanity domain (donutnvph.com) here.
 
+import { DEMO } from './demo'
+
 const RESERVED = new Set([
   '', 'signup', 'login', 'rewards', 'account', 'admin', 'app', 'find', 'index.html',
-  'book', 'schedule', 'owner', 'track', 'preview',
+  'book', 'schedule', 'owner', 'track', 'preview', 'elle', 'franchise',
 ])
 
 // Default territory when someone hits the bare domain with no segment.
-export const DEFAULT_TERRITORY = (import.meta.env.VITE_TENANT_SLUG || 'ph').toLowerCase()
+// The demo build always presents Ocala, whatever the URL.
+export const DEFAULT_TERRITORY = DEMO ? 'ocala' : (import.meta.env.VITE_TENANT_SLUG || 'ph').toLowerCase()
 
 // The raw territory in the URL, or null if there isn't one.
 export function urlTerritory() {
@@ -20,8 +23,9 @@ export function urlTerritory() {
   return RESERVED.has(seg) ? null : seg
 }
 
-// The territory we should actually use (URL → default).
+// The territory we should actually use (URL → default). Demo build is always Ocala.
 export function activeTerritory() {
+  if (DEMO) return 'ocala'
   return urlTerritory() || DEFAULT_TERRITORY
 }
 

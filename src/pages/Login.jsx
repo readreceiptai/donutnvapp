@@ -67,6 +67,9 @@ export default function Login() {
       <p className="center muted" style={{ marginTop: 18 }}>
         New here? <Link className="link" to="/signup">Create an account</Link>
       </p>
+      <p className="center muted" style={{ marginTop: 6, fontSize: '.85rem' }}>
+        Franchise owner or operator? <Link className="link" to="/owner">Sign in here</Link>
+      </p>
     </div>
   )
 }

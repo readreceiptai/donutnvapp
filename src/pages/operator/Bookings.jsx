@@ -112,7 +112,7 @@ export default function Bookings() {
     <div className="pad-top stack">
       <h1>Bookings</h1>
       {msg && <div className="success">{msg}</div>}
-      {rows.length === 0 && <div className="card center"><div style={{ fontSize: 40 }}>📅</div><p className="muted" style={{ margin: '8px 0 0' }}>No bookings yet. Requests from the book-a-truck form land here.</p></div>}
+      {rows.length === 0 && <div className="card center"><div style={{ fontSize: 40 }}>📅</div><p className="muted" style={{ margin: '8px 0 0' }}>No bookings yet. Requests from the Book-A-Truck form land here.</p></div>}
 
       {rows.map((b) => (
         <div key={b.id} className="card card-accent">

@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import DonutPhoto from './DonutPhoto'
 
 // The blue curtains hold, then gather open like real drapes to reveal the
-// signup/landing — with a little firework show. Plays once per visit.
-export default function CurtainIntro() {
+// signup/landing — with a little firework show. Plays once per visit, unless
+// `always` is set (demo build) — then it replays on every fresh page load.
+export default function CurtainIntro({ always = false }) {
   const [phase, setPhase] = useState('closed') // 'closed' → 'open' → 'gone'
   const fwRef = useRef(null)
   const rafRef = useRef(0)
 
   useEffect(() => {
-    if (sessionStorage.getItem('dnv_intro_played')) { setPhase('gone'); return }
+    if (!always && sessionStorage.getItem('dnv_intro_played')) { setPhase('gone'); return }
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduce) { sessionStorage.setItem('dnv_intro_played', '1'); setPhase('gone'); return }
     const open = setTimeout(() => { setPhase('open'); startFireworks() }, 1500) // hold closed longer

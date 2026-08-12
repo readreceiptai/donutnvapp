@@ -9,6 +9,10 @@ import BrandLogo from '../components/BrandLogo'
 // screen just authenticates. Any non-@donutnv.com email is denied here, and the
 // database also blocks anyone from self-assigning the operator role.
 const ALLOWED_DOMAIN = '@donutnv.com'
+// Admin exception: specific full email addresses allowed through regardless of
+// domain (the owner/superadmin signs in with their personal email). Access to
+// the operator app is still governed by the database role/superadmin check.
+const ALLOWED_EMAILS = ['k.deans@mac.com']
 
 export default function OwnerLogin() {
   const { reloadProfile } = useAuth()
@@ -21,7 +25,7 @@ export default function OwnerLogin() {
     e.preventDefault()
     setErr('')
     const em = email.trim().toLowerCase()
-    if (!em.endsWith(ALLOWED_DOMAIN)) {
+    if (!em.endsWith(ALLOWED_DOMAIN) && !ALLOWED_EMAILS.includes(em)) {
       setErr('Owner accounts must use a @donutnv.com email address.'); return
     }
     if (!isConfigured) { setErr('Not connected to Supabase yet — add your keys in .env.'); return }

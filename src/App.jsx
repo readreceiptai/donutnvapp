@@ -12,13 +12,16 @@ import OwnerLogin from './pages/OwnerLogin'
 import Find from './pages/Find'
 import Rewards from './pages/Rewards'
 import Account from './pages/Account'
-import BookTruck from './pages/BookTruck'
+import Book from './pages/Book'
+import Games from './pages/Games'
+import Franchise from './pages/Franchise'
 import TrackEvent from './pages/TrackEvent'
 import Schedule from './pages/Schedule'
 // Operator + preview screens are code-split into their own chunks, so customers
 // never download the franchisee/ELLE/admin code (and vice-versa). As the second
 // app (ELLE) grows, its route lazy-loads here too.
 const AdminHome = lazy(() => import('./pages/AdminHome'))
+const Dashboard = lazy(() => import('./pages/operator/Dashboard'))
 const GoLive = lazy(() => import('./pages/operator/GoLive'))
 const Campaigns = lazy(() => import('./pages/operator/Campaigns'))
 const Bookings = lazy(() => import('./pages/operator/Bookings'))
@@ -27,6 +30,8 @@ const OpReviews = lazy(() => import('./pages/operator/Reviews'))
 const OpCorporate = lazy(() => import('./pages/operator/Corporate'))
 const OpCustomers = lazy(() => import('./pages/operator/Customers'))
 const Elle = lazy(() => import('./pages/operator/Elle'))
+const Unrouted = lazy(() => import('./pages/operator/Unrouted'))
+const FranDev = lazy(() => import('./pages/operator/FranDev'))
 const Preview = lazy(() => import('./pages/Preview'))
 
 function Loading() {
@@ -63,19 +68,24 @@ export default function App() {
         <Route path="/signup" element={<SignUp />} />
         <Route path="/login" element={<Login />} />
         <Route path="/owner" element={<OwnerLogin />} />
-        <Route path="/book" element={<BookTruck />} />
+        <Route path="/book" element={<Book />} />
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/track/:token" element={<TrackEvent />} />
         <Route path="/find" element={<AppShell><Find /></AppShell>} />
+        <Route path="/games" element={<AppShell><Games /></AppShell>} />
         <Route path="/rewards" element={<AppShell><Rewards /></AppShell>} />
         <Route path="/account" element={<AppShell><Account /></AppShell>} />
         <Route path="/admin" element={<OperatorShell><AdminHome /></OperatorShell>} />
+        <Route path="/admin/dashboard" element={<OperatorShell><Dashboard /></OperatorShell>} />
         <Route path="/admin/live" element={<OperatorShell><GoLive /></OperatorShell>} />
         <Route path="/admin/bookings" element={<OperatorShell><Bookings /></OperatorShell>} />
         <Route path="/admin/schedule" element={<OperatorShell><OpSchedule /></OperatorShell>} />
         <Route path="/admin/reviews" element={<OperatorShell><OpReviews /></OperatorShell>} />
         <Route path="/admin/corporate" element={<OperatorShell><OpCorporate /></OperatorShell>} />
         <Route path="/admin/customers" element={<OperatorShell><OpCustomers /></OperatorShell>} />
+        <Route path="/admin/unrouted" element={<OperatorShell><Unrouted /></OperatorShell>} />
+        <Route path="/admin/franchise" element={<OperatorShell><FranDev /></OperatorShell>} />
+        <Route path="/franchise" element={<Franchise />} />
         <Route path="/admin/games" element={<OperatorShell><Campaigns /></OperatorShell>} />
         <Route path="/elle" element={<Elle />} />
         <Route path="*" element={<Navigate to="/preview" replace />} />
@@ -89,19 +99,25 @@ export default function App() {
     content = (
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/book" element={<BookTruck />} />
+        <Route path="/book" element={<Book />} />
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/login" element={<Login />} />
         <Route path="/owner" element={<OwnerLogin />} />
+        <Route path="/franchise" element={<Franchise />} />
         <Route path="*" element={<Navigate to="/" replace state={{ from: location }} />} />
       </Routes>
     )
   } else if (profile && (profile.role === 'operator' || profile.role === 'admin')) {
-    content = (
+    // ELLE is its own full-screen product — render it bare, never inside the
+    // operator shell (which would add the top bar + bottom tab bar).
+    content = (onElle && entitlements?.elle) ? (
+      <Elle />
+    ) : (
       <OperatorShell>
         <Routes>
           <Route path="/admin" element={<AdminHome />} />
+          <Route path="/admin/dashboard" element={<Dashboard />} />
           <Route path="/admin/live" element={<GoLive />} />
           <Route path="/admin/bookings" element={<Bookings />} />
           <Route path="/admin/schedule" element={<OpSchedule />} />
@@ -109,6 +125,8 @@ export default function App() {
           <Route path="/admin/corporate" element={<OpCorporate />} />
           <Route path="/admin/customers" element={<OpCustomers />} />
           <Route path="/admin/games" element={<Campaigns />} />
+          {profile?.is_superadmin && <Route path="/admin/unrouted" element={<Unrouted />} />}
+          {profile?.is_superadmin && <Route path="/admin/franchise" element={<FranDev />} />}
           {entitlements?.elle && <Route path="/elle" element={<Elle />} />}
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
@@ -119,10 +137,12 @@ export default function App() {
       <AppShell>
         <Routes>
           <Route path="/" element={<Find />} />
-          <Route path="/book" element={<BookTruck />} />
+          <Route path="/book" element={<Book />} />
+          <Route path="/games" element={<Games />} />
           <Route path="/schedule" element={<Schedule />} />
           <Route path="/rewards" element={<Rewards />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/franchise" element={<Franchise />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppShell>

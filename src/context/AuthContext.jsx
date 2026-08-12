@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { activeTerritory } from '../lib/territory'
 
@@ -29,17 +29,24 @@ export function AuthProvider({ children }) {
     setProfile(data || null)
   }, [])
 
+  const uidRef = useRef(null)
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
+      uidRef.current = data.session?.user?.id ?? null
       setSession(data.session)
       loadProfile(data.session?.user?.id).finally(() => setLoading(false))
     })
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      const newUid = s?.user?.id ?? null
       setSession(s)
-      // Re-enter loading while the profile reloads so we never flash the wrong
-      // app (e.g. an operator briefly seeing the customer shell right after login).
-      setLoading(true)
-      loadProfile(s?.user?.id).finally(() => setLoading(false))
+      // Only reload the profile (and re-enter loading, which remounts the app) when
+      // the actual signed-in user changes. Routine token refreshes — which fire when
+      // you switch browser tabs — keep the same user, so we leave in-page state alone.
+      if (newUid !== uidRef.current) {
+        uidRef.current = newUid
+        setLoading(true)
+        loadProfile(newUid).finally(() => setLoading(false))
+      }
     })
     return () => sub.subscription.unsubscribe()
   }, [loadProfile])

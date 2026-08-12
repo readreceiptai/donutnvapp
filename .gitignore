@@ -8,3 +8,6 @@ dist
 ziQWxk1u
 vite.config.js.timestamp-*
 __wtest
+
+# Local Netlify folder
+.netlify

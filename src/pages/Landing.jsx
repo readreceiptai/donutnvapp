@@ -12,6 +12,20 @@ const EVENT_TYPES = [
   'Bar & Bat Mitzvahs', 'Teacher appreciation',
 ]
 
+// Customer signup benefit cards. Each franchisee chooses which to show via
+// tenants.benefits (an array of ids). Null / empty falls back to the full set.
+const BENEFITS = {
+  loyalty:  { ico: <MiniDonut size={34} />, title: 'Loyalty rewards', text: 'Earn toward free donuts every single visit. Your phone number is your card.' },
+  alerts:   { ico: '🔔', title: 'Truck alerts', text: 'Get a ping the second a truck rolls into your neighborhood, so you never miss it.' },
+  passport: { ico: '🗺️', title: 'Donut Passport', text: 'Visit different stops, collect stamps, and unlock special rewards along the way.' },
+  order:    { ico: '⚡', title: 'Order ahead', text: 'Skip the line. Order from your phone and your donuts are ready when you roll up.' },
+  prizes:   { ico: '🎁', title: 'Win prizes', text: 'Play for free donuts, branded swag, and DonutNV T-shirts. New games every week.' },
+  birthday: { ico: '🎂', title: 'Birthday treat', text: "Tell us your birthday and we'll make your day a little sweeter." },
+  refer:    { ico: '🤝', title: 'Refer & earn', text: 'Share your link with friends and earn free donuts every time one signs up.' },
+  deals:    { ico: '⭐', title: 'Members-only deals', text: 'App-only offers and first dibs on new flavors before anyone else.' },
+}
+const DEFAULT_BENEFITS = ['loyalty', 'alerts', 'passport', 'order', 'prizes', 'birthday', 'refer', 'deals']
+
 export default function Landing() {
   const { tenant } = useAuth()
   const [installEvt, setInstallEvt] = useState(null)
@@ -42,6 +56,8 @@ export default function Landing() {
 
   const area = tenant?.name || 'your area'
   const fb = tenant?.brand?.facebook || 'https://www.facebook.com/DonutNVCompany/'
+  const benefitIds = (Array.isArray(tenant?.benefits) && tenant.benefits.length ? tenant.benefits : DEFAULT_BENEFITS)
+    .filter((id) => BENEFITS[id])
 
   return (
     <div className="mk">
@@ -53,11 +69,12 @@ export default function Landing() {
 
       <div className="mk-wrap">
         <nav className="mk-nav">
-          <BrandLogo height={42} />
+          <BrandLogo height={60} />
           <div className="links">
             <Link to="/signup">Find donuts</Link>
-            <Link to="/book">Book a truck</Link>
+            <Link to="/book">Book-A-Truck</Link>
             <a href={fb} target="_blank" rel="noreferrer">Facebook</a>
+            <Link to="/login">Log in</Link>
           </div>
         </nav>
 
@@ -75,6 +92,9 @@ export default function Landing() {
               <Link className="btn btn-primary" to="/signup">Find donuts near me</Link>
               {!installed && <button className="btn btn-ghost" onClick={install}>⬇️ Add to home screen</button>}
             </div>
+            <p className="muted" style={{ marginTop: 10, fontSize: '.92rem' }}>
+              Already have an account? <Link className="link" to="/login">Log in</Link>
+            </p>
           </div>
           <div className="mk-hero-art">
             <img src="/brand/donut.png" alt="A bucket of DonutNV mini donuts"
@@ -86,12 +106,9 @@ export default function Landing() {
       {/* Sign up & win */}
       <div className="mk-wrap mk-section">
         <h2 className="mk-section-title">Sign up & start winning</h2>
-        <p className="mk-sub">A free account unlocks loyalty rewards and all the fun — it only takes a few seconds.</p>
+        <p className="mk-sub">A free account unlocks loyalty rewards and all the fun, and it only takes a few seconds.</p>
         <div className="mk-features">
-          <Feature ico={<MiniDonut size={34} />} title="Loyalty rewards" text="Earn toward free donuts every single visit. Your phone number is your card." />
-          <Feature ico="🗺️" title="Donut Passport" text="Visit different stops, collect stamps, and unlock special rewards along the way." />
-          <Feature ico="🎁" title="Win prizes" text="Play for free donuts, branded swag, and DonutNV T-shirts. New games every week." />
-          <Feature ico="🎂" title="Birthday treat" text="Tell us your birthday and we'll make your day a little sweeter." />
+          {benefitIds.map((id) => <Feature key={id} {...BENEFITS[id]} />)}
         </div>
       </div>
 
@@ -127,7 +144,7 @@ export default function Landing() {
 
       {/* Private events — clearly separated */}
       <div className="mk-wrap mk-section" style={{ paddingTop: 48 }}>
-        <h2 className="mk-section-title">Book the truck for your event</h2>
+        <h2 className="mk-section-title">Book-A-Truck for your event</h2>
         <p className="mk-sub">Bring the donut truck — and the show — straight to your party. We cater all kinds of events:</p>
         <div className="mk-chips">
           {EVENT_TYPES.map((e) => <span className="mk-chip" key={e}>{e}</span>)}
@@ -136,6 +153,15 @@ export default function Landing() {
         <p className="mk-sub" style={{ marginBottom: 18 }}>Tell us about your event and we'll tailor it to you.</p>
         <div style={{ textAlign: 'center' }}>
           <Link className="btn btn-primary" to="/book" style={{ width: 'auto', padding: '14px 32px', display: 'inline-flex' }}>Get a quote</Link>
+        </div>
+      </div>
+
+      {/* Franchise development — recognizable, deliberately below the customer content */}
+      <div className="mk-band cream">
+        <div className="mk-wrap" style={{ textAlign: 'center' }}>
+          <h2>Love DonutNV? Own one. <img src="/brand/minidonut.png" alt="" style={{ height: '0.85em', verticalAlign: '-0.08em' }} /></h2>
+          <p>Turn the fun into your own business — an interactive mobile donut franchise with a flat $750/mo royalty (never a percentage) and turnkey equipment. 140+ owners across 25+ states.</p>
+          <Link className="btn btn-primary" to="/franchise" style={{ width: 'auto', padding: '14px 28px', display: 'inline-flex' }}>Explore franchising →</Link>
         </div>
       </div>
 

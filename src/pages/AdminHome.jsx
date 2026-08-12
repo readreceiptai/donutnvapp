@@ -11,6 +11,8 @@ export default function AdminHome() {
   const [liveTrucks, setLiveTrucks] = useState([])
   const [wallet, setWallet] = useState(null)
   const [pulse, setPulse] = useState(null)
+  const [unrouted, setUnrouted] = useState(null)
+  const [franLeads, setFranLeads] = useState(null)
 
   const load = useCallback(async () => {
     if (!profile) return
@@ -25,6 +27,12 @@ export default function AdminHome() {
     setWallet(Array.isArray(w) ? w[0] : w)
     const { data: p } = await supabase.rpc('get_territory_pulse', { p_tenant: profile.tenant_id })
     setPulse(Array.isArray(p) ? p[0] : p)
+    if (profile.is_superadmin) {
+      const { data: u } = await supabase.rpc('get_unrouted_bookings')
+      setUnrouted(Array.isArray(u) ? u.length : 0)
+      const { data: fr } = await supabase.rpc('get_frandev_leads')
+      setFranLeads(Array.isArray(fr) ? fr.length : 0)
+    }
   }, [profile])
 
   useEffect(() => { load() }, [load])
@@ -98,8 +106,18 @@ export default function AdminHome() {
         </div>
       )}
 
+      <Link to="/admin/dashboard" className="btn btn-blue">📊 Performance dashboard</Link>
+
       {entitlements?.elle && (
         <Link to="/elle" className="btn btn-primary" style={{ background: 'var(--brand, #e91e63)' }}>🎯 ELLE — My Events</Link>
+      )}
+
+      {profile?.is_superadmin && (
+        <Link to="/admin/unrouted" className="btn btn-blue">📮 Unrouted Leads{unrouted ? ` (${unrouted})` : ''}</Link>
+      )}
+
+      {profile?.is_superadmin && (
+        <Link to="/admin/franchise" className="btn btn-blue">Franchise Leads{franLeads ? ` (${franLeads})` : ''}</Link>
       )}
 
       <Link to="/admin/live" className="btn btn-primary">🟢 Go to broadcast controls</Link>

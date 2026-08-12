@@ -243,9 +243,12 @@ p  { line-height: 1.5; }
 .mk-hero-art img { width: 100%; max-width: 420px; height: auto; filter: drop-shadow(0 14px 26px rgba(0,0,0,.20)); }
 
 .mk-section-title { text-align: center; font-size: 2rem; margin: 0 0 26px; }
-.mk-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; padding: 8px 0 60px; }
-.mk-feature { background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; text-align: center; }
-.mk-feature .ico { font-size: 42px; line-height: 1; }
+.mk-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; padding: 8px 0 60px; }
+.mk-feature { background: var(--paper); border-radius: var(--radius); box-shadow: var(--shadow); padding: 26px 24px; text-align: center; border-top: 3px solid transparent; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.mk-feature:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0,0,0,.10); border-top-color: var(--red); }
+.mk-feature .ico { width: 66px; height: 66px; margin: 0 auto 10px; display: grid; place-items: center; border-radius: 50%; background: rgba(221,27,34,.10); font-size: 30px; line-height: 1; }
+.mk-feature:nth-child(even) .ico { background: rgba(10,123,193,.12); }
+.mk-feature .ico img { width: 34px; height: 34px; margin: 0; }
 .mk-feature h3 { margin: 14px 0 6px; font-size: 1.2rem; }
 .mk-feature p { margin: 0; color: var(--muted); }
 

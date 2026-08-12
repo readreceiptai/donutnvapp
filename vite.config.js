@@ -7,6 +7,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // TEMPORARY (private beta): self-destroying service worker. This unregisters
+      // any existing service worker and clears its caches on next visit, so the
+      // offline cache can no longer bypass the site-wide password gate. Flip this
+      // back to a normal PWA config when the site goes public.
+      selfDestroying: true,
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {

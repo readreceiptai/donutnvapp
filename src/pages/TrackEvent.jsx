@@ -91,7 +91,7 @@ export default function TrackEvent() {
       {/* ── Here & serving ── */}
       {['arrived', 'serving'].includes(s) && (
         <>
-          <Hero photo title="We're here! 🍩" sub={`Enjoy your hot mini donuts, ${name || 'friend'}!`} />
+          <Hero photo title="We're here!" sub={`Enjoy your hot mini donuts, ${name || 'friend'}!`} />
           <FeedbackCard token={token} phase="during" prompt="How's everything going? Let us know in real time." />
         </>
       )}

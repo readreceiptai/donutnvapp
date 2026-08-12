@@ -100,7 +100,7 @@ export default function SignUp() {
             <input type="text" inputMode="numeric" placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} required />
           </div>
           {err && <div className="error">{err}</div>}
-          <button className="btn btn-primary" disabled={busy}>{busy ? 'Creating account…' : 'Create my account 🍩'}</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? 'Creating account…' : 'Create my account'}</button>
           <button type="button" className="link" onClick={() => setStage('form')}>← Fix my details</button>
         </form>
       </div>
