@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { DEMO } from '../../lib/demo'
+import FeedbackButton from '../../components/FeedbackButton'
 
 // ELLE — Event Lead Engine. Its own product, its own skin: dark, cyber-ish but
 // restrained, no DonutNV branding. Reads the ELLE project via the elle-dashboard
@@ -297,6 +298,7 @@ export default function Elle() {
   return (
     <div className="elle">
       <style>{ELLE_CSS}</style>
+      <FeedbackButton role="franchisee" />
       <header className="elle-top">
         <div>
           <div className="elle-wordmark">ELLE<span className="elle-cursor">▌</span></div>

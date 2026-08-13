@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import BrandLogo from './BrandLogo'
+import FeedbackButton from './FeedbackButton'
 
 // Operator app wrapper: same shape as the customer shell, different tabs.
 // Three tabs, big targets — a zee can run the whole truck from this.
@@ -13,6 +14,7 @@ export default function OperatorShell({ children }) {
         </span>
       </div>
       {children}
+      <FeedbackButton role="franchisee" />
       <nav className="tabbar">
         <NavLink to="/admin" end>{({ isActive }) => <Tab active={isActive} ico="🏠" label="Home" />}</NavLink>
         <NavLink to="/admin/live">{({ isActive }) => <Tab active={isActive} ico="🟢" label="Go Live" />}</NavLink>

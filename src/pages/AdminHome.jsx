@@ -120,6 +120,10 @@ export default function AdminHome() {
         <Link to="/admin/franchise" className="btn btn-blue">Franchise Leads{franLeads ? ` (${franLeads})` : ''}</Link>
       )}
 
+      {profile?.is_superadmin && (
+        <Link to="/admin/feedback" className="btn btn-blue">🗣️ Tester feedback</Link>
+      )}
+
       <Link to="/admin/live" className="btn btn-primary">🟢 Go to broadcast controls</Link>
       <Link to="/admin/games" className="btn btn-blue">🎮 Manage games & rewards</Link>
       <Link to="/admin/reviews" className="btn btn-blue">⭐ Reviews &amp; testimonials</Link>

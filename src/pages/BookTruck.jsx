@@ -22,7 +22,7 @@ const DEMO_BOOK = {
 // AND pushes it to GHL/LeadConnector so your workflows kick in.
 // Required (matching the website): First, Last, Email, Zip, "Tell us about your event".
 export default function BookTruck({ onBack }) {
-  const { tenant, profile } = useAuth()
+  const { tenant, profile, session, reloadProfile } = useAuth()
   const [f, setF] = useState(DEMO ? { ...DEMO_BOOK } : {
     firstName: profile?.first_name || '', lastName: profile?.last_name || '',
     email: profile?.email || '', phone: profile?.phone || '',
@@ -44,6 +44,7 @@ export default function BookTruck({ onBack }) {
     setErr('')
     if (isLikelyBot({ honeypot: f.company, startedAt: startedAt.current })) return // silent
     if (!isConfigured) { setErr('Not connected to Supabase yet — add your keys in .env.'); return }
+    if (!DEMO && !session) { setErr('Please sign in to request a truck.'); return }
     if (!f.firstName || !f.lastName || !f.email || !f.zip || !f.details) {
       setErr('Please fill in your name, email, ZIP code, and a little about your event.'); return
     }
@@ -72,6 +73,19 @@ export default function BookTruck({ onBack }) {
     if (row?.id && row?.tracking_token) {
       supabase.functions.invoke('ghl-sync', { body: { booking_id: row.id, token: row.tracking_token } }).catch(() => {})
     }
+    // Complete the signed-in customer's profile from what they just entered, so the
+    // lead is attributable and we don't re-ask next time. Best-effort.
+    if (session && profile) {
+      const patch = {}
+      if (!profile.first_name && f.firstName) patch.first_name = f.firstName
+      if (!profile.last_name && f.lastName) patch.last_name = f.lastName
+      if (!profile.phone && f.phone) patch.phone = normalizePhone(f.phone)
+      if (!profile.zip && f.zip) patch.zip = f.zip.trim()
+      if (Object.keys(patch).length) {
+        await supabase.from('profiles').update(patch).eq('id', session.user.id)
+        reloadProfile?.()
+      }
+    }
     setBusy(false); setDone(true)
   }
 
@@ -82,6 +96,25 @@ export default function BookTruck({ onBack }) {
         <h1>Request received!</h1>
         <p className="muted">Thanks, {f.firstName}! We'll be in touch shortly to lock in the details and make your event sweet.</p>
         <Link className="btn btn-primary" to="/" style={{ marginTop: 16 }}>Done</Link>
+      </div>
+    )
+  }
+
+  // Attributable leads: require a signed-in account before booking (pilot policy).
+  // DEMO bypasses so the on-camera demo still flows.
+  if (!DEMO && !session) {
+    return (
+      <div className="screen pad-top">
+        <div className="topbar"><BrandLogo height={30} />
+          {onBack ? <button className="link" style={{ fontSize: '.85rem', background: 'none', border: 0, cursor: 'pointer' }} onClick={onBack}>← Back</button>
+                  : <Link to="/" className="link" style={{ fontSize: '.85rem' }}>Close</Link>}
+        </div>
+        <h1>Book-A-Truck 🚚</h1>
+        <div className="card stack" style={{ marginTop: 12 }}>
+          <p style={{ margin: 0 }}>Sign in or create a free account to request a truck. It saves your event details and lets us follow up with you directly.</p>
+          <Link className="btn btn-primary" to="/login">Sign in</Link>
+          <Link className="btn btn-blue" to="/signup">Create a free account</Link>
+        </div>
       </div>
     )
   }

@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import BrandLogo from './BrandLogo'
 import MiniDonut from './MiniDonut'
+import FeedbackButton from './FeedbackButton'
 import { useAuth } from '../context/AuthContext'
 
 // Wraps the signed-in app: branded top bar + big bottom nav.
@@ -17,6 +18,7 @@ export default function AppShell({ children }) {
         </div>
       </div>
       {children}
+      <FeedbackButton role="customer" />
       <nav className="tabbar">
         <NavLink to="/" end>{({ isActive }) => <Tab active={isActive} ico="📍" label="Find" />}</NavLink>
         <NavLink to="/rewards">{({ isActive }) => <Tab active={isActive} ico={<MiniDonut size={24} />} label="Rewards" />}</NavLink>

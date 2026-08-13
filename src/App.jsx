@@ -32,6 +32,7 @@ const OpCustomers = lazy(() => import('./pages/operator/Customers'))
 const Elle = lazy(() => import('./pages/operator/Elle'))
 const Unrouted = lazy(() => import('./pages/operator/Unrouted'))
 const FranDev = lazy(() => import('./pages/operator/FranDev'))
+const OpFeedback = lazy(() => import('./pages/operator/Feedback'))
 const Preview = lazy(() => import('./pages/Preview'))
 
 function Loading() {
@@ -85,6 +86,7 @@ export default function App() {
         <Route path="/admin/customers" element={<OperatorShell><OpCustomers /></OperatorShell>} />
         <Route path="/admin/unrouted" element={<OperatorShell><Unrouted /></OperatorShell>} />
         <Route path="/admin/franchise" element={<OperatorShell><FranDev /></OperatorShell>} />
+        <Route path="/admin/feedback" element={<OperatorShell><OpFeedback /></OperatorShell>} />
         <Route path="/franchise" element={<Franchise />} />
         <Route path="/admin/games" element={<OperatorShell><Campaigns /></OperatorShell>} />
         <Route path="/elle" element={<Elle />} />
