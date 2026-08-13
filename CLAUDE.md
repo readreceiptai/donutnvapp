@@ -41,6 +41,18 @@ Built for DonutNV, a mini-donut franchise. Customers = "Z" / "Zee" (franchisee o
 - ELLE auto-seeds free EXAMPLE leads for every new Z; confirm switch (`elle_set_paid_enabled`) unlocks paid discovery and auto-clears examples.
 - Unpushed local commits exist — **push from the Mac.**
 
+## Keeping Command Central current (STANDING RULE — every session)
+
+This doc set is only useful if it stays true. **In every working session, before you finish, update it:**
+
+- Shipped a feature, changed schema, added/edited an edge function, RPC, trigger, or cron → update the relevant `docs/` file (`ARCHITECTURE`, `DATA-MODEL`, `ELLE`, `WINDOW`).
+- Made a non-obvious call or got a decision from Kevin → append to `docs/DECISIONS.md` (newest first, dated).
+- Opened, closed, or reprioritized work → update `docs/ROADMAP.md`.
+- New term, person, or identifier → add to `docs/GLOSSARY.md`.
+- Update the "Last updated" date + "Current status" in this file when status materially changes.
+
+Commit the doc updates in the same batch as the work. If a session ends without doc updates, that's a miss. Kevin will also switch threads periodically — leaving the docs current is how the next thread starts fully briefed.
+
 ## Backups
 
 This doc set lives in the repo on Kevin's computer and in git history. Planned: copy to an external hard disk. Database backups + restore steps are in `docs/RUNBOOKS.md`.
