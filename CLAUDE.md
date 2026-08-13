@@ -1,0 +1,46 @@
+# DonutNV Platform — Command Central
+
+**This file auto-loads into any Claude session opened in this folder. Read it first, then the `docs/` files it points to. It is the single source of truth for the whole platform.**
+
+Maintained by Kevin McLenithan (Trench Logic). Last updated: 2026-08-13.
+
+---
+
+## What this is
+
+Two products, one codebase, two databases:
+
+- **The Window** — the branded customer app (find-the-truck map, loyalty/rewards, games, Book-A-Truck). White-labeled per franchisee.
+- **ELLE** (Event Lead Engine) — the franchisee-facing lead engine that finds, scores, and enriches event/business/non-profit leads and pushes them to each owner's LeadConnector.
+
+Built for DonutNV, a mini-donut franchise. Customers = "Z" / "Zee" (franchisee owner). "Zor" = the franchisor/corporate. See `docs/GLOSSARY.md`.
+
+## How a new session should get up to speed
+
+1. Read this file.
+2. Read `docs/ARCHITECTURE.md` (systems, IDs, deploy) and `docs/DATA-MODEL.md` (tables, flags, triggers).
+3. For ELLE work read `docs/ELLE.md`; for customer-app work read `docs/WINDOW.md`.
+4. Before changing anything, read `docs/DECISIONS.md` (why things are the way they are) and `docs/RUNBOOKS.md` (how to operate/deploy/recover).
+5. Open items live in `docs/ROADMAP.md`.
+
+## Ground rules (do not violate)
+
+- **No paid API spend until a Z is confirmed.** ELLE's paid jobs gate on `elle_tenants.paid_apis_enabled`; it defaults false. The franchisor is expected to pay, so there is no per-Z billing gate to build — but leave the confirm switch in place. See `docs/ELLE.md`.
+- **Never remove the spend caps / kill switch.** The global cap is the master kill switch. See `docs/RUNBOOKS.md`.
+- **Brand:** never use the donut emoji anywhere — use the mini-donut / bucket brand imagery. Colors: red `#DD1B22`, blue `#0A7BC1`, cream `#FFF7F0`, ink `#231F20`. Fonts: Poppins / Roboto / Gochi Hand. No em dashes in customer-facing copy Kevin will send.
+- **The Window colors do not change.** ELLE may get a light/white mode. Design changes go to **staging only**.
+- **Git:** commits are made locally in this repo; **Kevin pushes from his Mac** (the sandbox has no push creds). Run `git gc` occasionally to clear stale lock warnings.
+- **Demo-only hacks** (Ocala geography forcing, dummy accounts) must never ship in the real production app.
+
+## Current status (2026-08-13)
+
+- Production is live at **donutnvapp.com** (Netlify site `donutnv-app-live`).
+- A production-readiness audit was completed; most REDs fixed. Remaining open items are in `docs/ROADMAP.md` (backups, Sentry, elle-discover job queue, ownership policy, SMTP, Twilio/A2P).
+- Spend governor, kill switch, per-service caps, and dispatcher enforcement are live and tested.
+- In-app feedback loop, FAQ/support, and Book-A-Truck login gate shipped to prod.
+- ELLE auto-seeds free EXAMPLE leads for every new Z; confirm switch (`elle_set_paid_enabled`) unlocks paid discovery and auto-clears examples.
+- Unpushed local commits exist — **push from the Mac.**
+
+## Backups
+
+This doc set lives in the repo on Kevin's computer and in git history. Planned: copy to an external hard disk. Database backups + restore steps are in `docs/RUNBOOKS.md`.
