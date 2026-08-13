@@ -27,6 +27,14 @@ Cron jobs (pg_cron on ELLE): weekly discovery (Sun), weekly enrichment (Sun), da
 - **Alerts:** `elle_spend_evaluate()` writes to `elle_spend_alerts` at 80% and at breach (deduped). Delivery is via the APP `spend-alert-sms` function to **+15592462122** — **pending Twilio setup** (not yet sending).
 - **Self-loggers (actual spend):** `elle-enrich-business` (apollo), `elle-maps-source` (apify_places), `elle-enrich-linkedin` (apify_linkedin + apollo). Others get dispatcher estimates until precise per-function logging is added (ROADMAP #58).
 
+## Per-client cost dashboard
+
+Views on the ledger, security-invoker:
+- **`elle_cost_dashboard`** — per tenant: `actual_total`, `estimate_total` (separated), `onboarding_actual`, `recurring_actual`, `actual_7d`, `actual_30d`, charge counts, `last_spend_at`, plus `paid_apis_enabled`.
+- **`elle_cost_by_service_phase`** — per tenant × service × phase (actual vs estimate) units + dollars.
+- Actual = self-logged by functions (phase onboarding/recurring). Estimate = dispatcher metering (phase='estimate'). Rates in `elle_service_rates`.
+- **Open refinement (ROADMAP #58):** replace dispatcher estimates with true per-call actuals on the remaining paid functions. Clean end-state = every paid function self-logs actual AND the dispatcher drops its estimate block (do BOTH together to avoid double-counting and to keep the LLM cap fed). Not yet done — estimates still provide cap safety in the meantime.
+
 ## Auto-seed for every Z (free, no spend)
 
 - On new `elle_tenants` insert, `trg_elle_seed_examples` → `elle_seed_examples()` inserts **3 clearly-labeled EXAMPLE leads** (non-callable `example@donotcontact.invalid` contacts) so the board is never empty. Zero API spend. Tenants that already have real leads are skipped.

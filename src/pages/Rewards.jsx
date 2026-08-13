@@ -17,15 +17,18 @@ export default function Rewards() {
   const [passportStops, setPassportStops] = useState(0)
 
   useEffect(() => {
+    if (!profile?.tenant_id) return
+    // Explicit tenant scope (defense-in-depth on top of RLS) so a customer only ever
+    // sees their own franchisee's rewards.
     supabase.from('campaigns').select('*')
-      .eq('is_active', true).in('kind', ['checkin_stamp', 'passport'])
+      .eq('is_active', true).eq('tenant_id', profile.tenant_id).in('kind', ['checkin_stamp', 'passport'])
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         const list = data || []
         setStamp(list.find((c) => c.kind === 'checkin_stamp') || null)
         setPassport(list.find((c) => c.kind === 'passport') || null)
       })
-  }, [])
+  }, [profile])
 
   useEffect(() => {
     if (!profile || !stamp) return
