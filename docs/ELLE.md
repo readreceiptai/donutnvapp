@@ -41,6 +41,18 @@ Views on the ledger, security-invoker:
 - Examples bypass the territory zipwall via `enrichment_status='example'`; uniqueness on the global `(slug,start_date)` constraint is guaranteed by a per-tenant date offset + retry loop.
 - Tracked in `elle_example_seed`. On confirm (`paid_apis_enabled` → true), `trg_elle_clear_examples` → `elle_clear_examples()` wipes them.
 
+## One-button onboarding (#48 — backbone built)
+
+`elle_provision_tenant(tenant)` is the button. Free stages run always; paid stages gate on `paid_apis_enabled`:
+
+- **intake** — validates the tenant has territory ZIPs (errors if none). **params** — seeds `elle_tenant_params` defaults. **seed** — example board (auto-seeded on tenant creation).
+- **market_report / discovery / enrichment** — run only when confirmed; otherwise recorded as `awaiting_confirm`.
+- **crons** — the global weekly jobs already cover the tenant once confirmed.
+
+Progress is tracked per stage in **`elle_onboarding`** (status readout / sales artifact). `elle_onboard_territory` now **refuses to spend on an unconfirmed tenant** (closed a real gap). Confirming a Z (`elle_set_paid_enabled(..., true)`) auto-clears examples AND kicks off the paid cold-load via the confirm trigger.
+
+Still to build on this backbone: an **audit/verify stage** (#49 — confirm market report populated, event volume sane, crons firing, zero out-of-territory leakage, LeadConnector connected), a market-report cold-load confirmation, and a UI "provision / go live" button in the ELLE admin.
+
 ## Tenants (as of 2026-08-13)
 
 11 ELLE tenants incl. Palm Harbor, DNV Corporate–Orlando (Alex), Las Vegas (Nicole), Piedmont Triad (Josh), Ocala (Demo, `is_demo=true`), Frisco/Plano (Perez), Harrisburg (Peterson), Cape Fear (Mangis), Central AL (Cambron), Gulf Coast AL (Bailey), Porter County IN (Kurtz). All have events loaded (19–246 each) and all are `paid_apis_enabled=false`.

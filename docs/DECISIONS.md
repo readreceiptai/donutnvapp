@@ -4,6 +4,11 @@ Why things are the way they are. Newest first. Update this whenever a non-obviou
 
 ## 2026-08-13
 
+- **One-button onboarding backbone (#48)** built: `elle_provision_tenant` runs free stages always, gates paid stages on `paid_apis_enabled`, tracks progress in `elle_onboarding`. Closed a spend gap — `elle_onboard_territory` previously spent regardless of confirm; now gated. Confirming a Z auto-clears examples + triggers the paid cold-load. Remaining: audit/verify stage (#49), UI button.
+- **Cost dashboard (#58 half)** shipped: `elle_cost_dashboard` / `elle_cost_by_service_phase` split actual vs estimate per client. Precise per-function actual logging deferred (needs coordinated 6-function + dispatcher change to avoid double-counting; no live spend yet since no Z confirmed). #58 stays open for that.
+- **#61 Rewards tenant filter** shipped to prod (defense-in-depth on RLS).
+
+
 - **Franchisor pays → no per-Z billing gate.** Corporate is expected to fund the platform, so we are NOT building per-franchisee payment/billing. The `paid_apis_enabled` confirm switch stays (it's the "this Z is live, start spending" control) but nothing is invested toward a per-Z-pays scenario. Could change; don't remove anything.
 - **Beta rollout preference: contiguous regional cluster.** Preferred order: (1) contiguous regional cluster, (2) single-state saturation, (3) representative archetype sample. Reason: only contiguous coverage lets us test/prove Alex's "out-of-bounds lead → nearest Z + fair distribution" mechanic and gives a complete owned/unowned map. **Prerequisite:** get the current, complete ZIP→owner registry from corporate (the owned list Kevin gave is stale). Not guaranteed corporate will let us choose, but this is our preference.
 - **Command-central docs** created (this `docs/` set + root `CLAUDE.md`) so context survives thread switches. Lives in the repo/git; external hard-disk copy planned.
