@@ -4,6 +4,7 @@ Why things are the way they are. Newest first. Update this whenever a non-obviou
 
 ## 2026-08-13
 
+- **Post-build audit** (Supabase security advisors + state checks) — clean overall; fixed 3 issues we'd introduced: enabled RLS on new tables `elle_example_seed` + `elle_onboarding` (were exposed via REST), revoked anon/authenticated execute on the `elle_tenants_seed_trg` / `elle_tenants_confirm_trg` trigger functions, and pinned `elle_enforce_event_zip` search_path. Verified: 0 tenants paid-enabled, 0 test residue, all objects present, APP RPCs not anon-callable. Pre-existing advisor items (service-role tables with RLS-deny, pg_net in public, leaked-password protection = ROADMAP #55-area) left as-is.
 - **One-button onboarding backbone (#48)** built: `elle_provision_tenant` runs free stages always, gates paid stages on `paid_apis_enabled`, tracks progress in `elle_onboarding`. Closed a spend gap — `elle_onboard_territory` previously spent regardless of confirm; now gated. Confirming a Z auto-clears examples + triggers the paid cold-load. Remaining: audit/verify stage (#49), UI button.
 - **Cost dashboard (#58 half)** shipped: `elle_cost_dashboard` / `elle_cost_by_service_phase` split actual vs estimate per client. Precise per-function actual logging deferred (needs coordinated 6-function + dispatcher change to avoid double-counting; no live spend yet since no Z confirmed). #58 stays open for that.
 - **#61 Rewards tenant filter** shipped to prod (defense-in-depth on RLS).
