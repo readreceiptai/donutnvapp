@@ -16,7 +16,10 @@ function pickPhone(p: any): string | null {
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
-  if (!SECRET || url.searchParams.get("key") !== SECRET) return new Response("forbidden", { status: 403 });
+  // Prefer the secret in a header (kept out of access logs). Fall back to the
+  // ?key= query param for Apollo callbacks that can only carry a URL.
+  const presented = req.headers.get("x-webhook-secret") ?? url.searchParams.get("key");
+  if (!SECRET || presented !== SECRET) return new Response("forbidden", { status: 403 });
   const body: any = await req.json().catch(() => ({}));
   await supabase.from("apollo_webhook_log").insert({ body }).then(() => {}, () => {});
   const people: any[] = body?.people || body?.matches || body?.webhook_result?.people || (Array.isArray(body) ? body : []);

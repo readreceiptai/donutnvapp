@@ -3,7 +3,22 @@
 -- a "live" session with a couple of location pings so the map shows something
 -- before the real GPS feed is wired in. Run AFTER schema.sql.
 -- Safe to run more than once (uses fixed UUIDs + upserts).
+--
+-- DANGER: this writes a REAL tenant slug ('ph') and flips a truck "live" with a
+-- fake GPS ping. Run against production and a phantom "open now" truck shows on
+-- the live customer map. So it is guarded: it aborts unless you explicitly opt in
+-- by setting a session flag, which you should only ever do on a non-prod database:
+--     PGOPTIONS="-c donutnv.allow_seed=1" psql "<non-prod-url>" -f supabase/seed.sql
 -- ============================================================================
+
+do $$
+begin
+  if current_setting('donutnv.allow_seed', true) is distinct from '1' then
+    raise exception using
+      message = 'Refusing to run seed.sql without opt-in. This writes demo data (a fake "live" truck).',
+      hint    = 'Only on a NON-PROD database: PGOPTIONS="-c donutnv.allow_seed=1" psql <url> -f supabase/seed.sql';
+  end if;
+end $$;
 
 -- Your operator/franchise (white-label tenant). Edit name/colors freely.
 insert into public.tenants (id, slug, name, brand, support_phone, support_email)

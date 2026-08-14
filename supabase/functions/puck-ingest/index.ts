@@ -45,6 +45,12 @@ Deno.serve(async (req) => {
     if (!token || !Number.isFinite(lat) || !Number.isFinite(lng)) {
       return new Response('missing token/lat/lng', { status: 400 })
     }
+    // Reject implausible coordinates (out of range, or the 0,0 "null island"
+    // default a misconfigured tracker sends) so a bad ping can't drop a truck in
+    // the ocean on the public map.
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180 || (lat === 0 && lng === 0)) {
+      return new Response('bad coordinates', { status: 400 })
+    }
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,

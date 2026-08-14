@@ -311,15 +311,34 @@ create policy trucks_write on public.trucks for all
   using (public.is_operator() and tenant_id = public.current_tenant_id())
   with check (public.is_operator() and tenant_id = public.current_tenant_id());
 
+-- Public sees only currently-live, non-expired sessions (not every row); operators
+-- see their own tenant. schema_bookings.sql tightens this to also exclude private
+-- "on the way to your event" sessions once the visibility column exists (a rebuild
+-- runs that file after this one). See migration 20260814_scope_live_location_public_reads.
 drop policy if exists live_read on public.live_sessions;
-create policy live_read on public.live_sessions for select using (true);
+create policy live_read on public.live_sessions for select
+  using (
+    (is_live = true and (ends_at is null or ends_at > now()))
+    or (public.is_operator() and tenant_id = public.current_tenant_id())
+    or public.is_superadmin()
+  );
 drop policy if exists live_write on public.live_sessions;
 create policy live_write on public.live_sessions for all
   using (public.is_operator() and tenant_id = public.current_tenant_id())
   with check (public.is_operator() and tenant_id = public.current_tenant_id());
 
+-- Public sees GPS only for a truck that currently has a live, non-expired session
+-- (correlated by truck_id); operators see their own tenant. schema_bookings.sql
+-- narrows the session match to PUBLIC sessions once visibility exists.
 drop policy if exists loc_read on public.truck_locations;
-create policy loc_read on public.truck_locations for select using (true);
+create policy loc_read on public.truck_locations for select
+  using (
+    exists (select 1 from public.live_sessions s
+            where s.truck_id = truck_locations.truck_id
+              and s.is_live = true and (s.ends_at is null or s.ends_at > now()))
+    or (public.is_operator() and tenant_id = public.current_tenant_id())
+    or public.is_superadmin()
+  );
 drop policy if exists loc_write on public.truck_locations;
 create policy loc_write on public.truck_locations for all
   using (public.is_operator() and tenant_id = public.current_tenant_id())
@@ -332,8 +351,12 @@ create policy stops_write on public.scheduled_stops for all
   using (public.is_operator() and tenant_id = public.current_tenant_id())
   with check (public.is_operator() and tenant_id = public.current_tenant_id());
 
+-- Tenant-scoped read (matches migration 20260812_fix_campaigns_tenant_scoped_read):
+-- an active campaign is visible only to its own tenant (or a superadmin). The old
+-- is_active-only policy leaked every tenant's loyalty campaigns cross-tenant.
 drop policy if exists camp_read on public.campaigns;
-create policy camp_read on public.campaigns for select using (is_active = true);
+create policy camp_read on public.campaigns for select
+  using (is_active = true and (tenant_id = public.current_tenant_id() or public.is_superadmin()));
 drop policy if exists camp_write on public.campaigns;
 create policy camp_write on public.campaigns for all
   using (public.is_operator() and tenant_id = public.current_tenant_id())

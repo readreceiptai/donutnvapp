@@ -19,6 +19,35 @@ create or replace view public.active_live_sessions as
     and visibility = 'public'
     and (ends_at is null or ends_at > now());
 
+-- Now that `visibility` exists, tighten the base-table reads so a private
+-- "on the way to your event" session (and its GPS) can't be read directly via
+-- the anon key. This is the authoritative final state; it matches migration
+-- 20260814_scope_live_location_public_reads and supersedes the visibility-free
+-- versions in schema.sql. A private session must never surface on the public map.
+drop policy if exists live_read on public.live_sessions;
+create policy live_read on public.live_sessions for select
+  using (
+    (is_live = true
+      and coalesce(visibility, 'public') = 'public'
+      and (ends_at is null or ends_at > now()))
+    or (public.is_operator() and tenant_id = public.current_tenant_id())
+    or public.is_superadmin()
+  );
+
+drop policy if exists loc_read on public.truck_locations;
+create policy loc_read on public.truck_locations for select
+  using (
+    exists (
+      select 1 from public.live_sessions s
+      where s.truck_id = truck_locations.truck_id
+        and s.is_live = true
+        and coalesce(s.visibility, 'public') = 'public'
+        and (s.ends_at is null or s.ends_at > now())
+    )
+    or (public.is_operator() and tenant_id = public.current_tenant_id())
+    or public.is_superadmin()
+  );
+
 -- ============================================================================
 -- BOOKINGS — the book-a-truck pipeline. Feeds GHL/LeadConnector.
 -- ============================================================================

@@ -42,6 +42,7 @@ export default function Fundraise({ onBack }) {
     customerCareSms: false, optionalMarketing: false, company: '',
   })
   const startedAt = useRef(Date.now())
+  const submitting = useRef(false)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
   const [err, setErr] = useState('')
@@ -54,14 +55,16 @@ export default function Fundraise({ onBack }) {
   async function submit(e) {
     e.preventDefault()
     setErr('')
+    if (submitting.current) return // guard against a fast double-tap (busy re-render lags)
     if (isLikelyBot({ honeypot: f.company, startedAt: startedAt.current })) return
     if (!isConfigured) { setErr('Not connected to Supabase yet — add your keys in .env.'); return }
     if (!f.orgName || !f.orgType || !f.firstName || !f.lastName || !f.email || !f.zip) {
       setErr('Please fill in your organization, name, email, and ZIP code.'); return
     }
     if (TURNSTILE_ENABLED && !tsToken) { setErr('Please complete the quick "I\'m human" check below.'); return }
+    submitting.current = true
     setBusy(true)
-    if (!(await passesTurnstile(tsToken))) { setBusy(false); setErr('Verification failed — please try the human check again.'); return }
+    if (!(await passesTurnstile(tsToken))) { setBusy(false); submitting.current = false; setErr('Verification failed — please try the human check again.'); return }
     const { data, error } = await supabase.rpc('submit_fundraiser', {
       p_tenant: tenant?.id,
       p_org_name: f.orgName.trim(),
@@ -78,12 +81,12 @@ export default function Fundraise({ onBack }) {
       p_marketing_consent: !!f.optionalMarketing,
       p_consent_text_version: CONSENT_VERSION,
     })
-    if (error) { setBusy(false); setErr(error.message); return }
+    if (error) { setBusy(false); submitting.current = false; setErr(error.message); return }
     const row = Array.isArray(data) ? data[0] : data
     if (row?.id && row?.tracking_token) {
       supabase.functions.invoke('ghl-sync', { body: { booking_id: row.id, token: row.tracking_token } }).catch(() => {})
     }
-    setBusy(false); setDone(true)
+    setBusy(false); submitting.current = false; setDone(true)
   }
 
   if (done) {

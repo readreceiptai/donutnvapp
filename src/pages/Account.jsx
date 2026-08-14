@@ -7,7 +7,7 @@ import { enablePushAlerts } from '../lib/push'
 export default function Account() {
   const { profile, signOut, reloadProfile } = useAuth()
   const [prefs, setPrefs] = useState({ marketing_sms: false, marketing_email: false })
-  const [saved, setSaved] = useState('')
+  const [note, setNote] = useState(null) // { text, ok } | null
 
   // Read the latest consent state per kind.
   useEffect(() => {
@@ -27,17 +27,24 @@ export default function Account() {
     const next = !prefs[kind]
     setPrefs((p) => ({ ...p, [kind]: next }))
     // Append a new consent row (we keep history rather than overwriting).
-    await supabase.from('consents').insert({
+    // Consent is compliance-sensitive, so never claim "Saved" without confirming
+    // the write landed — on failure, revert the toggle and tell the user.
+    const { error } = await supabase.from('consents').insert({
       profile_id: profile.id, tenant_id: profile.tenant_id,
       kind, granted: next, text_version: CONSENT_VERSION, source: 'account',
     })
-    setSaved('Saved'); setTimeout(() => setSaved(''), 1500)
+    if (error) {
+      setPrefs((p) => ({ ...p, [kind]: !next }))
+      setNote({ text: "Couldn't save — try again", ok: false }); setTimeout(() => setNote(null), 2500)
+      return
+    }
+    setNote({ text: 'Saved', ok: true }); setTimeout(() => setNote(null), 1500)
   }
 
   async function turnOnAlerts() {
     const r = await enablePushAlerts(profile)
-    setSaved(r.ok ? 'Alerts on ✓' : r.reason)
-    setTimeout(() => setSaved(''), 2500)
+    setNote({ text: r.ok ? 'Alerts on' : r.reason, ok: !!r.ok })
+    setTimeout(() => setNote(null), 2500)
   }
 
   if (!profile) return <div className="pad-top muted">Loading your account…</div>
@@ -64,7 +71,7 @@ export default function Account() {
           <input type="checkbox" checked={prefs.marketing_email} onChange={() => toggle('marketing_email')} />
           <span className="label"><b>Email me offers.</b> {CONSENT_TEXT.marketing_email}</span>
         </label>
-        {saved && <div className="success" style={{ marginTop: 6 }}>{saved} ✓</div>}
+        {note && <div className={note.ok ? 'success' : 'error'} style={{ marginTop: 6 }}>{note.text}{note.ok ? ' ✓' : ''}</div>}
       </div>
 
       <button className="btn btn-blue" onClick={turnOnAlerts} style={{ marginTop: 6 }}>🔔 Turn on truck alerts</button>

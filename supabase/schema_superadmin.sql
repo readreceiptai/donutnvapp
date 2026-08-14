@@ -36,12 +36,18 @@ $$;
 -- Auto-elevate the platform owner's login (Kevin) the moment the profile exists,
 -- so superadmin is tied to the login with no manual step. Change the email here
 -- only if the owner login email changes.
+--
+-- SECURITY: derive from the VERIFIED login email (auth.email() / JWT), never the
+-- user-typed profiles.email column — otherwise any customer could self-elevate by
+-- registering with the owner's email value. This matches schema_security_fixes.sql
+-- exactly; both files define the same safe version so a from-scratch rebuild can
+-- never regress to the old (insecure) new.email form regardless of file order.
 create or replace function public.auto_superadmin()
 returns trigger
 language plpgsql security definer set search_path = public
 as $$
 begin
-  if lower(new.email) = 'k.deans@mac.com' then
+  if lower(coalesce(auth.email(), '')) = 'k.deans@mac.com' then
     new.is_superadmin := true;
   end if;
   return new;

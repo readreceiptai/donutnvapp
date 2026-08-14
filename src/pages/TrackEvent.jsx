@@ -12,7 +12,9 @@ import MiniDonut from '../components/MiniDonut'
 // booked → on the way → here (feedback) → wrapping → we've left → review → coupon.
 export default function TrackEvent() {
   const { token } = useParams()
-  const DEMO = token === 'demo'                 // staging preview with a stage switcher
+  // Staging preview only (stage switcher with fake data). In production, /track/demo
+  // must fall through to the real lookup (which returns "not found"), never the mock.
+  const DEMO = token === 'demo' && import.meta.env.VITE_PREVIEW_MODE === '1'
   const [demoStatus, setDemoStatus] = useState('confirmed')
   const [t, setT] = useState(null)
   const [notFound, setNotFound] = useState(false)

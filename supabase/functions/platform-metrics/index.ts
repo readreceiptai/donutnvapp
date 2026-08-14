@@ -45,14 +45,25 @@ Deno.serve(async (req) => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
   const elle = ELLE_URL && ELLE_KEY ? createClient(ELLE_URL, ELLE_KEY, { auth: { persistSession: false } }) : null
 
-  // ELLE side (per elle tenant)
+  // ELLE side (per elle tenant). This carries competitive business data
+  // (leads, won/lost, booked_revenue, pipeline) across ALL franchises, so it is
+  // NEVER returned network-wide to a non-superadmin. A franchisee sees only their
+  // own ELLE tenant (resolved by their login email); everyone else gets nothing.
   let elleByTenant: Record<string, any> = {}
   let elleTenants: any[] = []
-  if (elle) {
+  if (elle && c.isSuper) {
     const { data: em } = await elle.rpc('elle_metrics').catch(() => ({ data: {} }))
     elleByTenant = em || {}
     const { data: et } = await elle.from('elle_tenants').select('id, franchise_name').eq('enabled', true).order('franchise_name')
     elleTenants = et || []
+  } else if (elle && c.email) {
+    const { data: mine } = await elle.from('elle_tenants').select('id, franchise_name').eq('primary_contact_email', c.email).eq('enabled', true).maybeSingle()
+    if (mine) {
+      const { data: em } = await elle.rpc('elle_metrics').catch(() => ({ data: {} }))
+      const row = (em || {})[mine.id]
+      if (row) elleByTenant = { [mine.id]: row }
+      elleTenants = [mine]
+    }
   }
 
   // Window side (per app tenant)

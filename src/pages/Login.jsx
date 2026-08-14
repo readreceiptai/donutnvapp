@@ -11,16 +11,21 @@ export default function Login() {
   const [stage, setStage] = useState('enter') // 'enter' | 'verify'
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [noAccount, setNoAccount] = useState(false)
 
   async function sendCode(e) {
     e.preventDefault()
-    setErr('')
+    setErr(''); setNoAccount(false)
     if (!isConfigured) { setErr('App not connected to Supabase yet — add your keys in .env.'); return }
     setBusy(true)
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim() })
+    // Log in only — never create an account here. A brand-new or mistyped email
+    // must NOT silently spin up a profile-less auth user; send them to Sign Up.
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: false } })
     setBusy(false)
-    if (error) setErr(error.message)
-    else setStage('verify')
+    if (error) {
+      if (isNoAccountError(error)) setNoAccount(true)
+      else setErr(error.message)
+    } else setStage('verify')
   }
 
   async function verify(e) {
@@ -46,6 +51,12 @@ export default function Login() {
               value={email} onChange={(e) => setEmail(e.target.value)} required />
             <div className="hint">We'll email you a 6-digit code to log in.</div>
           </div>
+          {noAccount && (
+            <div className="error">
+              We couldn't find an account for that email.{' '}
+              <Link className="link" to="/signup">Create one here</Link> — it only takes a minute.
+            </div>
+          )}
           {err && <div className="error">{err}</div>}
           <button className="btn btn-primary" disabled={busy}>{busy ? 'Sending…' : 'Email me a code'}</button>
         </form>
@@ -72,6 +83,18 @@ export default function Login() {
       </p>
     </div>
   )
+}
+
+// Supabase returns this when shouldCreateUser:false and the email has no account.
+// The code/message wording has varied across versions, so match defensively.
+function isNoAccountError(error) {
+  const code = (error?.code || '').toLowerCase()
+  const msg = (error?.message || '').toLowerCase()
+  return code === 'otp_disabled'
+    || code === 'user_not_found'
+    || msg.includes('signups not allowed')
+    || msg.includes('user not found')
+    || msg.includes('no user')
 }
 
 export function normalizePhone(v) {

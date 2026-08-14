@@ -28,6 +28,13 @@ Deno.serve(async (req) => {
   const { data: { user } } = await asUser.auth.getUser()
   if (!user?.email) return json({ error: 'not signed in' }, 401)
 
+  // Provisioning an ELLE tenant + claiming territory ZIPs is an operator/staff
+  // action, not something a signed-in customer may do. Gate on role (RLS lets a
+  // user read their own profile row).
+  const { data: prof } = await asUser.from('profiles').select('role, is_superadmin').eq('id', user.id).maybeSingle()
+  const allowed = !!prof?.is_superadmin || prof?.role === 'operator' || prof?.role === 'admin'
+  if (!allowed) return json({ error: 'not authorized' }, 403)
+
   const body = await req.json().catch(() => ({}))
   const { franchise_name, franchise_id, zips = [], surrounding_zips = [], event_types = [], plan_tier = 'basic', suggestion } = body
   if (!franchise_name || !Array.isArray(zips) || zips.length === 0) {

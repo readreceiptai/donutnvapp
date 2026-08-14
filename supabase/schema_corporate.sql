@@ -4,8 +4,10 @@
 -- Safe to run more than once.
 --
 -- Cross-territory rollup for corporate. SECURITY DEFINER so it can read across
--- tenants (past RLS), but it returns NOTHING unless the caller's profile.role
--- is 'admin' — so an operator can never see another territory's numbers.
+-- tenants (past RLS), but it returns NOTHING unless the caller is a superadmin —
+-- so a per-territory 'admin' can never see another territory's numbers. This
+-- matches schema_cleanup.sql (the M6 fix); kept in sync so a from-scratch rebuild
+-- can't regress to the weaker role='admin' gate (this file sorts after cleanup).
 -- ============================================================================
 
 create or replace function public.get_corporate_metrics()
@@ -34,7 +36,7 @@ as $$
        where ls.tenant_id = t.id and ls.is_live = true
          and (ls.ends_at is null or ls.ends_at > now()))
   from public.tenants t
-  where (select role from public.profiles where id = auth.uid()) = 'admin'
+  where public.is_superadmin()
   order by t.name;
 $$;
 

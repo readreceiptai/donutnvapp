@@ -2,6 +2,22 @@
 
 Why things are the way they are. Newest first. Update this whenever a non-obvious call is made.
 
+## 2026-08-14
+
+- **Pre-launch review + fix pass** (full-codebase review, then a validated fix script). Landed:
+  - **platform-metrics ELLE leak (P0):** the ELLE metrics block returned every franchise's leads/won/lost/booked_revenue/pipeline to ANY logged-in user. Now superadmin-only for the full network; a non-super franchisee gets only their own ELLE tenant (resolved by login email).
+  - **elle-dashboard paid-spend gate (P0):** `find_linkedin`/`find_press` now check `paid_apis_enabled` AND that the `business_id` is on the caller's own board before spending Apify/Apollo — the confirm switch is now enforced at this direct path, not just in the SQL orchestrators.
+  - **Login account-creation trap (P0):** Login now passes `shouldCreateUser:false` and shows a "create one" link on unknown email, so a mistyped login can't spin up a profile-less auth user. Added a `NeedsSetup` recovery screen for the session-without-profile state (was an infinite spinner).
+  - **BetaGate mounted (P0):** the private-beta password wall was dead code; now wired in `main.jsx` (no-op unless `VITE_BETA_PASSWORD` is set). Docs and code now agree.
+  - **ErrorBoundary + bundled Sentry (P1):** top-level React error boundary (branded reload card, reports to Sentry) so one bad render can't white-screen the app. Sentry is now the bundled `@sentry/react` (added to package.json/lock), not a runtime CDN import.
+  - **elle-onboard authorization (P1):** self-provisioning an ELLE tenant + claiming ZIPs now requires operator/superadmin, not just any signed-in email.
+  - **Repo rebuild-safety (P1):** removed the regressing/insecure snapshot definitions so a from-scratch `psql -f schema_*.sql` can't undo live fixes — `auto_superadmin` now uses verified `auth.email()` in schema_superadmin.sql, `route_booking` is revoked (not re-granted) in schema_territory.sql, `get_corporate_metrics` uses `is_superadmin()` in schema_corporate.sql, `camp_read` is tenant-scoped in schema.sql. Live DB stays the authoritative rebuild source until a real ordered-migration manifest exists (#62).
+  - **Private live-location RLS (item 10):** new migration `20260814_scope_live_location_public_reads.sql` (APP project) scopes `live_read`/`loc_read` off `using(true)` so private "on the way" sessions + en-route GPS aren't anon-readable. Base files (schema.sql visibility-free interim + schema_bookings.sql authoritative) kept in sync. **Must verify the customer Find map still shows a live public truck after applying.**
+  - **Dispatcher deny-by-default (P2):** new migration `20260814_elle_dispatcher_deny_by_default.sql` (ELLE project) blocks any unclassified function instead of dispatching it ungoverned. No behavior change today (all dispatched names are already mapped paid functions).
+  - **P2 cleanup:** map centers on the tenant's centroid (not Palm Harbor FL); `?testpin=1` and `/track/demo` demo backdoors gated to preview builds only; `seed.sql` guarded against running on prod; consent toggle reverts + warns on a failed write; double-submit ref-guards on Signup/Book/Fundraise; puck-ingest rejects out-of-range/`0,0` coordinates; elle-apollo-webhook accepts the secret via header (query kept for Apollo).
+  - **Left intentionally:** `demo-checkin` key stays in the URL (it's a clickable demo link; the real control is not deploying it to prod). Verify it is NOT deployed to production.
+  - **Still on Kevin (config, unchanged by this pass):** confirm `VITE_PREVIEW_MODE` is deleted on the prod Netlify site; restrict the Google Maps browser key by referrer; set Turnstile keys before public OTP/booking.
+
 ## 2026-08-13
 
 - **Post-build audit** (Supabase security advisors + state checks) — clean overall; fixed 3 issues we'd introduced: enabled RLS on new tables `elle_example_seed` + `elle_onboarding` (were exposed via REST), revoked anon/authenticated execute on the `elle_tenants_seed_trg` / `elle_tenants_confirm_trg` trigger functions, and pinned `elle_enforce_event_zip` search_path. Verified: 0 tenants paid-enabled, 0 test residue, all objects present, APP RPCs not anon-callable. Pre-existing advisor items (service-role tables with RLS-deny, pg_net in public, leaked-password protection = ROADMAP #55-area) left as-is.

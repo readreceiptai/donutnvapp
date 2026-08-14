@@ -66,14 +66,22 @@ export default function Find() {
   // Init the map.
   useEffect(() => {
     loadGoogleMaps().then((maps) => {
-      if (!mapEl.current || mapRef.current) return
+      // Center on this territory's centroid so a customer with no live truck
+      // sees their own area, not Florida. Falls back to Palm Harbor only until
+      // corporate loads each tenant's coordinates (tenants.lat/lng).
+      const hasCoords = Number.isFinite(tenant?.lat) && Number.isFinite(tenant?.lng)
+      const center = DEMO ? WEC : hasCoords ? { lat: tenant.lat, lng: tenant.lng } : { lat: 28.0764, lng: -82.7637 }
+      // Map already built (tenant coords arrived after init): recenter once, but
+      // only if no live truck has taken over the view.
+      if (mapRef.current) { if (!DEMO && hasCoords && !trucks.length) mapRef.current.setCenter(center); return }
+      if (!mapEl.current) return
       mapRef.current = new maps.Map(mapEl.current, {
-        center: DEMO ? WEC : { lat: 28.0764, lng: -82.7637 },
+        center,
         zoom: DEMO ? 15 : 12, disableDefaultUI: true, zoomControl: true,
         styles: DEMO ? MAP_STYLE_DEMO : MAP_STYLE,
       })
     }).catch((e) => setMapError(e.message))
-  }, [])
+  }, [tenant?.lat, tenant?.lng])
 
   // Truck markers + fit view (skip the auto-fit while a route is shown).
   useEffect(() => {
@@ -295,9 +303,11 @@ const DEMO_TRUCK = {
   loc: WEC,
 }
 function testPinOn() {
+  // Preview/staging only. Previously a ?testpin=1 link surfaced the fake truck in
+  // production too; that backdoor is removed — the demo pin now shows solely in
+  // preview builds.
   try {
-    if (import.meta.env.VITE_PREVIEW_MODE === '1') return true
-    return new URLSearchParams(window.location.search).get('testpin') === '1'
+    return import.meta.env.VITE_PREVIEW_MODE === '1'
   } catch { return false }
 }
 

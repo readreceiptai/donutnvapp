@@ -97,12 +97,18 @@ Deno.serve(async (req) => {
     return json({ ok: true })
   }
 
-  if (body.action === 'find_linkedin' && !wantAll && tenant && body.business_id) {
-    const out = await elleFn('elle-enrich-linkedin', { business_id: body.business_id, max_contacts: 6 })
-    return json(out)
-  }
-  if (body.action === 'find_press' && !wantAll && tenant && body.business_id) {
-    const out = await elleFn('elle-press-gm', { business_id: body.business_id })
+  if ((body.action === 'find_linkedin' || body.action === 'find_press') && !wantAll && tenant && body.business_id) {
+    // Paid enrichment (Apify/Apollo). Two guards, both required:
+    // 1) Never spend for an unconfirmed tenant — enforce the confirm switch here,
+    //    not just in the SQL orchestrators (this path reaches the paid fn directly).
+    // 2) Never enrich a business that isn't on the caller's own board (ownership).
+    const { data: t2 } = await elle.from('elle_tenants').select('paid_apis_enabled').eq('id', tenant.id).maybeSingle()
+    if (!t2?.paid_apis_enabled) return json({ error: 'not_enabled', message: 'Paid enrichment is not enabled for this territory yet.' }, 403)
+    const { data: owns } = await elle.from('elle_tenant_businesses').select('business_id').eq('tenant_id', tenant.id).eq('business_id', body.business_id).maybeSingle()
+    if (!owns) return json({ error: 'not_found', message: 'That business is not on your board.' }, 404)
+    const out = body.action === 'find_linkedin'
+      ? await elleFn('elle-enrich-linkedin', { business_id: body.business_id, max_contacts: 6 })
+      : await elleFn('elle-press-gm', { business_id: body.business_id })
     return json(out)
   }
 

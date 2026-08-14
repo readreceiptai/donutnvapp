@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import AppShell from './components/AppShell'
 import OperatorShell from './components/OperatorShell'
@@ -37,6 +37,28 @@ const Preview = lazy(() => import('./pages/Preview'))
 
 function Loading() {
   return <div className="screen pad-top center"><p className="muted" style={{ marginTop: '40vh' }}>Loading…</p></div>
+}
+
+// Signed in, but no profile row loaded. Happens if signup's complete_signup
+// failed mid-way, or a stray login created an auth user with no profile. Without
+// this the user drops into the customer shell and spins forever — give them a
+// real way out (start over or sign out) instead of a dead end.
+function NeedsSetup() {
+  const { signOut, reloadProfile } = useAuth()
+  return (
+    <div className="screen pad-top center">
+      <div className="card stack" style={{ maxWidth: 380, margin: '20vh auto 0' }}>
+        <h1 style={{ marginTop: 0 }}>Let's finish setting up</h1>
+        <p className="muted" style={{ margin: 0 }}>
+          Your sign-in worked, but we couldn't find your account details. Create your
+          account to pick up where you left off.
+        </p>
+        <Link className="btn btn-primary" to="/signup">Finish creating my account</Link>
+        <button className="btn btn-ghost" onClick={() => reloadProfile()}>Try again</button>
+        <button className="link" onClick={() => signOut()}>Sign out</button>
+      </div>
+    </div>
+  )
 }
 
 // Staging preview: unlock every screen with no login. On if VITE_PREVIEW_MODE=1
@@ -110,6 +132,9 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace state={{ from: location }} />} />
       </Routes>
     )
+  } else if (session && !profile) {
+    // Authenticated but profile missing — recoverable screen, never the spinner.
+    content = <NeedsSetup />
   } else if (profile && (profile.role === 'operator' || profile.role === 'admin')) {
     // ELLE is its own full-screen product — render it bare, never inside the
     // operator shell (which would add the top bar + bottom tab bar).

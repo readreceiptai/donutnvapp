@@ -119,4 +119,8 @@ begin
 
   return json_build_object('ok', true, 'assigned', chosen, 'reason', reason);
 end; $$;
-grant execute on function public.route_booking(uuid) to anon, authenticated;
+-- route_booking must NOT be callable directly by clients — it runs only inside the
+-- SECURITY DEFINER submit_booking RPC (which executes it with owner privileges
+-- regardless of this grant). Revoke here too so a rebuild can't leave it anon-callable
+-- (this file sorts after schema_booking_signup_rpcs.sql, which also revokes it).
+revoke execute on function public.route_booking(uuid) from anon, authenticated;

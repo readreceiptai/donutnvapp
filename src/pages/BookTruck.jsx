@@ -30,6 +30,7 @@ export default function BookTruck({ onBack }) {
     customerCareSms: false, optionalMarketing: false, company: '', // company = honeypot
   })
   const startedAt = useRef(Date.now())
+  const submitting = useRef(false)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
   const [err, setErr] = useState('')
@@ -42,6 +43,7 @@ export default function BookTruck({ onBack }) {
   async function submit(e) {
     e.preventDefault()
     setErr('')
+    if (submitting.current) return // guard against a fast double-tap (busy re-render lags)
     if (isLikelyBot({ honeypot: f.company, startedAt: startedAt.current })) return // silent
     if (!isConfigured) { setErr('Not connected to Supabase yet — add your keys in .env.'); return }
     if (!DEMO && !session) { setErr('Please sign in to request a truck.'); return }
@@ -49,8 +51,9 @@ export default function BookTruck({ onBack }) {
       setErr('Please fill in your name, email, ZIP code, and a little about your event.'); return
     }
     if (TURNSTILE_ENABLED && !tsToken) { setErr('Please complete the quick "I\'m human" check below.'); return }
+    submitting.current = true
     setBusy(true)
-    if (!(await passesTurnstile(tsToken))) { setBusy(false); setErr('Verification failed — please try the human check again.'); return }
+    if (!(await passesTurnstile(tsToken))) { setBusy(false); submitting.current = false; setErr('Verification failed — please try the human check again.'); return }
     // One secure server call: inserts the booking AND routes it to the right
     // app-active franchisee by event ZIP, returning the id + tracking token.
     const { data, error } = await supabase.rpc('submit_booking', {
@@ -67,7 +70,7 @@ export default function BookTruck({ onBack }) {
       p_marketing_consent: !!f.optionalMarketing,
       p_consent_text_version: CONSENT_VERSION,
     })
-    if (error) { setBusy(false); setErr(error.message); return }
+    if (error) { setBusy(false); submitting.current = false; setErr(error.message); return }
     const row = Array.isArray(data) ? data[0] : data
     // Push to GHL (speed-to-lead). The tracking token authorizes this one call.
     if (row?.id && row?.tracking_token) {
@@ -86,7 +89,7 @@ export default function BookTruck({ onBack }) {
         reloadProfile?.()
       }
     }
-    setBusy(false); setDone(true)
+    setBusy(false); submitting.current = false; setDone(true)
   }
 
   if (done) {

@@ -21,6 +21,7 @@ export default function SignUp() {
     marketingSms: false, marketingEmail: false, // opt-in only (TCPA/CASL: no pre-check)
   })
   const startedAt = useRef(Date.now())
+  const submitting = useRef(false)
   const [code, setCode] = useState('')
   const [stage, setStage] = useState('form') // 'form' | 'verify'
   const [busy, setBusy] = useState(false)
@@ -38,18 +39,20 @@ export default function SignUp() {
   async function start(e) {
     e.preventDefault()
     setErr('')
+    if (submitting.current) return // guard against a fast double-tap (busy re-render lags)
     if (isLikelyBot({ honeypot: f.company, startedAt: startedAt.current })) return // silent
     if (!isConfigured) { setErr('App not connected to Supabase yet — add your keys in .env, then try again.'); return }
     if (!f.firstName || !f.phone || !f.email || !f.zip) { setErr('Please fill in your name, phone, email, and ZIP.'); return }
     if (age === null) { setErr('Please pick your birthday — that\'s how you get your birthday treat 🎂'); return }
     if (isMinor && !f.parentEmail) { setErr('Since you\'re under 13, please add a parent or guardian\'s email so they can approve your account.'); return }
     if (TURNSTILE_ENABLED && !tsToken) { setErr('Please complete the quick "I\'m human" check below.'); return }
+    submitting.current = true
     setBusy(true)
     // Server-side bot check (no-op until Turnstile is configured).
-    if (!(await passesTurnstile(tsToken))) { setBusy(false); setErr('Verification failed — please try the human check again.'); return }
+    if (!(await passesTurnstile(tsToken))) { setBusy(false); submitting.current = false; setErr('Verification failed — please try the human check again.'); return }
     // Email a one-time code (no Twilio needed). Creates the auth user on verify.
     const { error } = await supabase.auth.signInWithOtp({ email: f.email.trim() })
-    setBusy(false)
+    setBusy(false); submitting.current = false
     if (error) setErr(error.message)
     else setStage('verify')
   }
@@ -57,11 +60,13 @@ export default function SignUp() {
   async function verify(e) {
     e.preventDefault()
     setErr('')
+    if (submitting.current) return // guard against a fast double-tap (busy re-render lags)
+    submitting.current = true
     setBusy(true)
     const { data, error } = await supabase.auth.verifyOtp({
       email: f.email.trim(), token: code.trim(), type: 'email',
     })
-    if (error) { setBusy(false); setErr(error.message); return }
+    if (error) { setBusy(false); submitting.current = false; setErr(error.message); return }
 
     const tenantId = tenant?.id
     const birthday = `${f.bYear}-${String(f.bMonth).padStart(2, '0')}-${String(f.bDay).padStart(2, '0')}`
@@ -82,10 +87,10 @@ export default function SignUp() {
       p_marketing_email: !isMinor && !!f.marketingEmail,
       p_consent_version: CONSENT_VERSION,
     })
-    if (sErr) { setBusy(false); setErr(sErr.message); return }
+    if (sErr) { setBusy(false); submitting.current = false; setErr(sErr.message); return }
 
     await reloadProfile()
-    setBusy(false)
+    setBusy(false); submitting.current = false
     // App routes to the map automatically once the profile loads.
   }
 

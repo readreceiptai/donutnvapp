@@ -4,18 +4,26 @@ import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { territoryBasename } from './lib/territory'
 import App from './App'
+import BetaGate from './components/BetaGate'
+import ErrorBoundary from './components/ErrorBoundary'
 import { initMonitoring } from './lib/monitoring'
 import './index.css'
 
 initMonitoring() // error monitoring (no-op until VITE_SENTRY_DSN is set)
 
 // basename makes every route relative to the territory, e.g. /ph/signup.
+// BetaGate is a no-op unless VITE_BETA_PASSWORD is set (private-beta wall).
+// ErrorBoundary keeps one bad render from white-screening the whole app.
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter basename={territoryBasename()}>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter basename={territoryBasename()}>
+        <AuthProvider>
+          <BetaGate>
+            <App />
+          </BetaGate>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 )
