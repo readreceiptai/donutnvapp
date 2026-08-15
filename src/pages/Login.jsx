@@ -2,24 +2,35 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, isConfigured } from '../lib/supabase'
 
-// Passwordless login by email code — no passwords, and no Twilio needed.
-// (Marketing texts go through GHL; the login code is the one system message,
-// and it's delivered by email.)
+// Returning members log in with email + password — no code, no email, no rate
+// limit. "Email me a code" stays only as a fallback for anyone who hasn't set a
+// password yet or forgot it.
 export default function Login() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
-  const [stage, setStage] = useState('enter') // 'enter' | 'verify'
+  const [stage, setStage] = useState('password') // 'password' | 'code' | 'verify'
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [noAccount, setNoAccount] = useState(false)
+
+  async function loginPassword(e) {
+    e.preventDefault()
+    setErr(''); setNoAccount(false)
+    if (!isConfigured) { setErr('App not connected to Supabase yet — add your keys in .env.'); return }
+    setBusy(true)
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    setBusy(false)
+    // On success, AuthContext picks up the session and App routes to the app.
+    if (error) setErr("That email and password don't match. Try again, or use a login code below.")
+  }
 
   async function sendCode(e) {
     e.preventDefault()
     setErr(''); setNoAccount(false)
     if (!isConfigured) { setErr('App not connected to Supabase yet — add your keys in .env.'); return }
     setBusy(true)
-    // Log in only — never create an account here. A brand-new or mistyped email
-    // must NOT silently spin up a profile-less auth user; send them to Sign Up.
+    // Log in only — never create an account here (a mistyped email must go to Sign Up).
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: false } })
     setBusy(false)
     if (error) {
@@ -30,12 +41,10 @@ export default function Login() {
 
   async function verify(e) {
     e.preventDefault()
-    setErr('')
-    setBusy(true)
+    setErr(''); setBusy(true)
     const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' })
     setBusy(false)
     if (error) setErr(error.message)
-    // On success, AuthContext picks up the session and App routes to the app.
   }
 
   return (
@@ -43,22 +52,45 @@ export default function Login() {
       <Link to="/" className="link" style={{ display: 'inline-block', marginBottom: 14 }}>← Back</Link>
       <h1>Welcome back</h1>
 
-      {stage === 'enter' && (
+      {stage === 'password' && (
+        <form className="card stack" onSubmit={loginPassword} style={{ marginTop: 10 }}>
+          <div className="field" style={{ margin: 0 }}>
+            <label>Email address</label>
+            <input type="email" inputMode="email" placeholder="you@email.com" autoComplete="email"
+              value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </div>
+          <div className="field" style={{ margin: 0 }}>
+            <label>Password</label>
+            <input type="password" placeholder="Your password" autoComplete="current-password"
+              value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </div>
+          {noAccount && (
+            <div className="error">We couldn't find an account for that email.{' '}
+              <Link className="link" to="/signup">Create one</Link>.</div>
+          )}
+          {err && <div className="error">{err}</div>}
+          <button className="btn btn-primary" disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
+          <button type="button" className="link" onClick={() => { setErr(''); setStage('code') }}>
+            Forgot password, or no password yet? Email me a code
+          </button>
+        </form>
+      )}
+
+      {stage === 'code' && (
         <form className="card stack" onSubmit={sendCode} style={{ marginTop: 10 }}>
           <div className="field" style={{ margin: 0 }}>
             <label>Email address</label>
             <input type="email" inputMode="email" placeholder="you@email.com"
               value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <div className="hint">We'll email you a 6-digit code to log in.</div>
+            <div className="hint">We'll email you a 6-digit code to log in this time.</div>
           </div>
           {noAccount && (
-            <div className="error">
-              We couldn't find an account for that email.{' '}
-              <Link className="link" to="/signup">Create one here</Link> — it only takes a minute.
-            </div>
+            <div className="error">We couldn't find an account for that email.{' '}
+              <Link className="link" to="/signup">Create one</Link>.</div>
           )}
           {err && <div className="error">{err}</div>}
           <button className="btn btn-primary" disabled={busy}>{busy ? 'Sending…' : 'Email me a code'}</button>
+          <button type="button" className="link" onClick={() => { setErr(''); setStage('password') }}>← Back to password login</button>
         </form>
       )}
 
@@ -71,7 +103,7 @@ export default function Login() {
           </div>
           {err && <div className="error">{err}</div>}
           <button className="btn btn-primary" disabled={busy}>{busy ? 'Checking…' : 'Log in'}</button>
-          <button type="button" className="link" onClick={() => setStage('enter')}>Use a different email</button>
+          <button type="button" className="link" onClick={() => { setErr(''); setStage('password') }}>← Back</button>
         </form>
       )}
 
@@ -86,7 +118,6 @@ export default function Login() {
 }
 
 // Supabase returns this when shouldCreateUser:false and the email has no account.
-// The code/message wording has varied across versions, so match defensively.
 function isNoAccountError(error) {
   const code = (error?.code || '').toLowerCase()
   const msg = (error?.message || '').toLowerCase()

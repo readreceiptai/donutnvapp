@@ -15,7 +15,7 @@ import TurnstileWidget, { TURNSTILE_ENABLED, passesTurnstile } from '../componen
 export default function SignUp() {
   const { tenant, reloadProfile } = useAuth()
   const [f, setF] = useState({
-    firstName: '', lastName: '', phone: '', email: '', zip: '',
+    firstName: '', lastName: '', phone: '', email: '', zip: '', password: '',
     bMonth: '', bDay: '', bYear: '',
     parentEmail: '', company: '', // company = honeypot (hidden)
     marketingSms: false, marketingEmail: false, // opt-in only (TCPA/CASL: no pre-check)
@@ -43,6 +43,7 @@ export default function SignUp() {
     if (isLikelyBot({ honeypot: f.company, startedAt: startedAt.current })) return // silent
     if (!isConfigured) { setErr('App not connected to Supabase yet — add your keys in .env, then try again.'); return }
     if (!f.firstName || !f.phone || !f.email || !f.zip) { setErr('Please fill in your name, phone, email, and ZIP.'); return }
+    if (!f.password || f.password.length < 8) { setErr('Please choose a password (at least 8 characters) so you can log in without a code next time.'); return }
     if (age === null) { setErr('Please pick your birthday — that\'s how you get your birthday treat 🎂'); return }
     if (isMinor && !f.parentEmail) { setErr('Since you\'re under 13, please add a parent or guardian\'s email so they can approve your account.'); return }
     if (TURNSTILE_ENABLED && !tsToken) { setErr('Please complete the quick "I\'m human" check below.'); return }
@@ -67,6 +68,9 @@ export default function SignUp() {
       email: f.email.trim(), token: code.trim(), type: 'email',
     })
     if (error) { setBusy(false); submitting.current = false; setErr(error.message); return }
+
+    // Set the member's password so every future login is password-only (no code).
+    if (f.password) { await supabase.auth.updateUser({ password: f.password }) }
 
     const tenantId = tenant?.id
     const birthday = `${f.bYear}-${String(f.bMonth).padStart(2, '0')}-${String(f.bDay).padStart(2, '0')}`
@@ -116,7 +120,7 @@ export default function SignUp() {
     <div className="screen pad-top">
       <Link to="/" className="link" style={{ display: 'inline-block', marginBottom: 12 }}>← Back</Link>
       <h1>Join the donut club</h1>
-      <p className="muted" style={{ marginTop: -6 }}>Takes about 30 seconds. We'll email you a code to confirm.</p>
+      <p className="muted" style={{ marginTop: -6 }}>Takes about 30 seconds. We'll email one code to confirm your email — after that you log in with your password.</p>
 
       <form className="card stack" onSubmit={start} style={{ marginTop: 12 }}>
         <input type="text" name="company" tabIndex={-1} autoComplete="off" aria-hidden="true"
@@ -141,6 +145,12 @@ export default function SignUp() {
         <div className="field" style={{ margin: 0 }}>
           <label>Email <span className="req">*</span></label>
           <input type="email" inputMode="email" placeholder="you@email.com" value={f.email} onChange={set('email')} required />
+        </div>
+
+        <div className="field" style={{ margin: 0 }}>
+          <label>Create a password <span className="req">*</span></label>
+          <input type="password" autoComplete="new-password" placeholder="At least 8 characters" value={f.password} onChange={set('password')} required />
+          <div className="hint">You'll use this to log in next time — no code needed.</div>
         </div>
 
         <div className="field" style={{ margin: 0 }}>
