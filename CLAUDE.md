@@ -2,7 +2,7 @@
 
 **This file auto-loads into any Claude session opened in this folder. Read it first, then the `docs/` files it points to. It is the single source of truth for the whole platform.**
 
-Maintained by Kevin McLenithan (Trench Logic). Last updated: 2026-08-13.
+Maintained by Kevin McLenithan (Trench Logic). Last updated: 2026-08-16.
 
 ---
 
@@ -19,7 +19,7 @@ Built for DonutNV, a mini-donut franchise. Customers = "Z" / "Zee" (franchisee o
 
 1. Read this file.
 2. Read `docs/ARCHITECTURE.md` (systems, IDs, deploy) and `docs/DATA-MODEL.md` (tables, flags, triggers).
-3. For ELLE work read `docs/ELLE.md`; for customer-app work read `docs/WINDOW.md`.
+3. For ELLE work read `docs/ELLE.md`; for customer-app work read `docs/WINDOW.md`; for the live proximity-push workstream read `docs/PROXIMITY-PUSH.md`.
 4. Before changing anything, read `docs/DECISIONS.md` (why things are the way they are) and `docs/RUNBOOKS.md` (how to operate/deploy/recover).
 5. Open items live in `docs/ROADMAP.md`.
 
@@ -32,7 +32,11 @@ Built for DonutNV, a mini-donut franchise. Customers = "Z" / "Zee" (franchisee o
 - **Git:** commits are made locally in this repo; **Kevin pushes from his Mac** (the sandbox has no push creds). Run `git gc` occasionally to clear stale lock warnings.
 - **Demo-only hacks** (Ocala geography forcing, dummy accounts) must never ship in the real production app.
 
-## Current status (2026-08-13)
+## Current status (2026-08-16)
+
+- **Option B (live proximity push)** server-side pipeline is **built, applied to the APP DB, and proven end to end** on branch `feature/proximity-push`. Six new additive tables (RLS deny-by-default, no `anon` grant), a PostGIS `ST_DWithin` matcher with the full rules layer, and two edge functions written but not deployed. **Ships OFF**: `app_config.proximity_push_enabled = 'false'` and every tenant toggle defaults false. Benchmarked at 100 trucks x 100K customers in ~1s. Remaining blockers are purchases and credentials (FCM/APNs key, Transistorsoft license, Play registration) — see `docs/PROXIMITY-PUSH.md` and ROADMAP #63-69. **Nothing on `main` was touched.**
+
+## Status as of 2026-08-13
 
 - Production is live at **donutnvapp.com** (Netlify site `donutnv-app-live`).
 - A production-readiness audit was completed; most REDs fixed. Remaining open items are in `docs/ROADMAP.md` (backups, Sentry, elle-discover job queue, ownership policy, SMTP, Twilio/A2P).

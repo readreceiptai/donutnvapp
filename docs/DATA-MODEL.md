@@ -6,7 +6,7 @@ Two databases. Below is the map of what matters, not every column. Confirm live 
 
 Key tables:
 - **tenants** — one row per franchisee territory (white-label brand, slug, `has_app`, `has_elle`, `square_location_id`). 8 rows today (Palm Harbor, Harrisburg, Wilmington, Gulf Coast, Frisco, Valparaiso, Central Alabama, Ocala). Ocala is the populated demo/reference territory.
-- **profiles** — users. `id` (uuid; **no FK to auth.users** — sample rows are insertable), `tenant_id` (FK tenants), `role` ('customer' | 'operator'), name/phone/email/zip, `is_superadmin`, `parent_profile_id`. Unique index on `(tenant_id, phone)` where phone present.
+- **profiles** — users. `id` (uuid; **FK `profiles_id_fkey` → `auth.users(id)`** — corrected 2026-08-16; this doc previously claimed there was no FK, but there is, so a profile row cannot exist without a matching auth user), `tenant_id` (FK tenants), `role` ('customer' | 'operator'), name/phone/email/zip, `is_superadmin`, `parent_profile_id`. Unique index on `(tenant_id, phone)` where phone present.
 - **check_ins** — loyalty stamps (profile_id, tenant_id, campaign_id, source, amount_cents).
 - **campaigns** — loyalty campaigns; `kind='checkin_stamp'`, `is_active`. RLS read is tenant-scoped (`camp_read`: is_active AND (tenant match OR superadmin)) — a cross-tenant leak here was fixed.
 - **bookings** — Book-A-Truck requests (square_order_id, deposit_status, deposit_amount_cents, tracking_token). Created via `submit_booking` RPC, routed by event ZIP, pushed to GHL via `ghl-sync`.
@@ -18,6 +18,20 @@ Key tables:
 - **app_config** — key/value settings (spend_alert_to `+15592462122`, spend_alert_secret, demo_checkin_key, demo_checkin_emails). RLS-enabled.
 - **processed_square_events** — idempotency guard for the Square webhook.
 - **zip_centroids**, territory/routing tables — lead routing by ZIP.
+
+### Option B — live proximity push (branch `feature/proximity-push`, 2026-08-16)
+
+Six new tables, all additive, all RLS `enable` + `force`, all with **no `anon` grant**. Full rationale in `docs/PROXIMITY-PUSH.md`.
+
+- **customer_positions** — device position history (`geog geography(Point,4326)`, accuracy, recorded_at). Service-role write only; customer reads own row only. Pruned to **24h** (PII; tighter than truck_locations' 48h).
+- **customer_latest_position** — one row per customer, **GiST index on `geog`**. The only table `ST_DWithin` touches. Same read/write posture.
+- **push_tokens** — native APNs/FCM tokens. Distinct from **push_subscriptions** (existing web/VAPID channel, unchanged); the dispatcher fans out to both.
+- **proximity_prefs** — per-customer opt-in, radius, quiet hours, timezone, caps. `enabled` defaults **false**.
+- **tenant_proximity_config** — per-tenant toggle, max radius, quiet hours, caps. `enabled` defaults **false**. Separate table so `tenants` is never altered.
+- **proximity_notification_log** — every send/suppression/failure + `opened_at` for CTR. Deliberately no FK to trucks/sessions so it outlives session pruning.
+- Reused read-only: `truck_latest_location`, `active_live_sessions`, `scheduled_stops`. Reused for dedupe: **`proximity_pushes`** `(session_id, profile_id)` PK — the interlock that lets legacy `notify-proximity` and new `proximity-dispatch` run side by side without double-sending.
+
+New functions: `ingest_customer_position`, `match_proximity_candidates` (matcher + all rules), `proximity_in_quiet_hours`, `get_proximity_metrics`, `mark_proximity_notification_opened`, `prune_customer_positions`, `prune_stale_push_tokens`. All service_role-only except `get_proximity_metrics` (superadmin/own-tenant operator) and `mark_proximity_notification_opened` (own rows). pg_cron job `prune-customer-positions` nightly 04:15.
 
 Key RPCs / functions (APP):
 - `submit_booking(...)` — insert booking + route to app-active franchisee by ZIP, returns id + tracking_token.

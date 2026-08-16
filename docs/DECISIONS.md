@@ -2,6 +2,23 @@
 
 Why things are the way they are. Newest first. Update this whenever a non-obvious call is made.
 
+## 2026-08-16
+
+- **Option B (live proximity push) server-side pipeline built** on branch `feature/proximity-push`. Full detail in `docs/PROXIMITY-PUSH.md`. The non-obvious calls:
+  - **Two position tables, not one.** `customer_positions` is 24h history; `customer_latest_position` is one row per customer and is the only thing `ST_DWithin` touches. Matching against history would mean scanning millions of rows to answer a question about ~100K people. The GiST index lives only on the hot table, so the high-write history table is not paying for an index nobody queries.
+  - **Customer location is readable by the customer and nobody else.** Not operators, not superadmin. A franchisee has no business reading where their customers physically are, and that restraint is what makes the App Review background-location story defensible. RLS is `enable` **and** `force`; `anon` has no grant on any of the six new tables. Debugging goes through service role, which is audited.
+  - **24h retention for customer positions vs 48h for `truck_locations`.** A truck's breadcrumb trail is business data; a customer's is PII. Different thing, different window.
+  - **New `tenant_proximity_config` table instead of columns on `tenants`.** Keeps the isolation rule absolute: this workstream created objects and altered nothing.
+  - **Reused the existing `proximity_pushes (session_id, profile_id)` interlock** rather than inventing a new dedupe. It means legacy `notify-proximity` and new `proximity-dispatch` can run side by side during cutover without double-notifying anyone.
+  - **All rules live in `match_proximity_candidates`, in SQL.** Kill switch, tenant toggle, opt-in, freshness, radius cap, quiet hours, frequency + daily caps, dedupe. One place to audit, and the caps cannot be bypassed by a buggy client or a second dispatcher.
+  - **Daily cap is a rolling 24h window, not a calendar day** — a calendar cap is gamed by a truck going live at 11:55pm.
+  - **Opt-in is two-step** (our priming screen, then the OS prompt). The OS "Allow all the time" dialog can only be spent once and a Deny is effectively permanent, so it is only spent on customers who already said yes to us. Opt-in rate is the metric the whole feature lives on.
+  - **Location plugin sits behind a provider interface.** Free `@capacitor-community/...` is active now to prove the pipeline; the paid Transistorsoft provider is written against the real API but inert. Its import is hidden from the bundler (`@vite-ignore` + variable specifier) so an uninstalled paid package cannot break `vite build`. Kevin's call: buy and swap before beta, because reliability is the moat.
+  - **Kill switch ships OFF** (`app_config.proximity_push_enabled = 'false'`), tenant toggles default off. Nothing sends until deliberately switched on.
+  - **CTR via a narrow RPC, not an UPDATE grant.** Granting customers UPDATE on `proximity_notification_log` would let them rewrite status/title/distance — the metrics themselves. `mark_proximity_notification_opened()` sets one column, on their own rows, once.
+  - **Doc correction:** `docs/DATA-MODEL.md` claimed `profiles.id` has **no** FK to `auth.users`. It does (`profiles_id_fkey`) — found when a test insert failed. Corrected.
+  - **Brand note:** legacy `notify-proximity` push copy uses the donut emoji, which `CLAUDE.md` bans. The new dispatcher's copy does not. Legacy copy left alone to avoid touching another session's surface; worth fixing when it is retired.
+
 ## 2026-08-14
 
 - **Pre-launch review + fix pass** (full-codebase review, then a validated fix script). Landed:

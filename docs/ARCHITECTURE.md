@@ -40,6 +40,10 @@ See `docs/RUNBOOKS.md` for the full deploy + rollback steps.
 **APP (`cfghtxfplkodjnndzmcf`):**
 `square-webhook` (v7 — atomic via `process_square_sale` RPC), `demo-checkin`, `spend-alert-sms` (Twilio, not yet configured), `ghl-sync`, `notify-proximity`, `wallet-pass`, `square-deposit`, `send-enroute-sms`, `verify-turnstile` (fail-open until secret set).
 
+Written but **not yet deployed** (branch `feature/proximity-push`, Option B — see `docs/PROXIMITY-PUSH.md`):
+- `location-ingest` — deploy **with** JWT verification. `profile_id` comes from the verified token, never the request body, so a client cannot report a position as someone else. Accepts batched fixes.
+- `proximity-dispatch` — deploy with `--no-verify-jwt`, gated by `CRON_SECRET` (same posture as `notify-proximity`). Runs the matcher, claims the `proximity_pushes` dedupe row, then fans out to FCM (native) + web push. Supersedes `notify-proximity`; both are safe to run at once because they share that dedupe key. Needs a new secret `FCM_SERVICE_ACCOUNT` (full service-account JSON, kept separate from every existing secret).
+
 **ELLE (`nvxfkzwbiomnswcxiblq`):**
 `elle-dashboard` (the read gateway the app calls), `elle-discover`, `elle-discover-events`, `elle-enrich-business`, `elle-enrich-event`, `elle-enrich-linkedin`, `elle-maps-source`, `elle-press-gm`, `elle-apollo-business`, `elle-market-brief`, `elle-apollo-webhook`, `elle-enrich` (cron worker).
 
