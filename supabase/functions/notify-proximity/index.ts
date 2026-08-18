@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: sub.keys },
             JSON.stringify({
-              title: 'DonutNV is near you! 🍩',
+              title: 'DonutNV is near you!',
               body: `A truck is live at ${s.stop_name || 'a stop nearby'} until ${new Date(s.ends_at).toLocaleTimeString()}.`,
               url: '/',
             }),
