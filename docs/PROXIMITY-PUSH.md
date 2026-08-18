@@ -141,8 +141,8 @@ Battery contract lives in `src/lib/location/config.js`: 500 m distance filter
 purpose: our own priming screen first, the OS "Allow all the time" dialog only
 after the customer has already said yes to us. The OS prompt can only be spent
 once; a Deny there is effectively permanent. Copy follows the brand rules (no
-donut emoji, no em dashes) — note the legacy `notify-proximity` copy uses the
-donut emoji and violates this.
+donut emoji, no em dashes). The legacy `notify-proximity` copy also violated
+this; fixed and redeployed (v10, 2026-08-17).
 
 ---
 
@@ -154,4 +154,4 @@ donut emoji and violates this.
 4. **Deploy the functions:** `location-ingest` **with** JWT verification, `proximity-dispatch` with `--no-verify-jwt` (gated by `CRON_SECRET`, matching `notify-proximity`).
 5. **Schedule** `proximity-dispatch` every minute, then **retire `notify-proximity`** once native coverage is real.
 6. **Flip the switches:** `app_config.proximity_push_enabled = 'true'`, then per-tenant `tenant_proximity_config.enabled` one territory at a time.
-7. **App Review:** background-location justification and privacy nutrition labels. This is the long pole; the 24h retention and own-row-only reads above are what make that story defensible.
+7. **App Review:** background-location justification and privacy nutrition labels. **Drafted: `docs/STORE-SUBMISSION-LOCATION.md`** (purpose strings, review notes, Play prominent disclosure + video script, both privacy-label forms, pre-submission checklist). The 24h retention and own-row-only reads above are what make the story defensible.

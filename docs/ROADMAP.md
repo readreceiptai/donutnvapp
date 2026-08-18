@@ -4,7 +4,7 @@ Mirrors the working task list. Grouped by what unblocks a beta launch. Update as
 
 ## Needs Kevin / external (lead time — start early)
 
-- **#63 Option B proximity push — purchases + credentials.** Server pipeline is built, applied and proven (`docs/PROXIMITY-PUSH.md`); these are the only hard blockers left. (a) **FCM project + APNs key** → set Supabase secret `FCM_SERVICE_ACCOUNT`; until then native sends log as `suppressed`. (b) **Transistorsoft background-geolocation license**, ~$300-400 **per platform** — buy before beta, the free plugin loses its watcher on process kill/reboot. (c) **Google Play registration $25**. (d) **App Review background-location justification + privacy labels** — the long pole, start the write-up early.
+- **#63 Option B proximity push — purchases + credentials.** Server pipeline is built, applied and proven (`docs/PROXIMITY-PUSH.md`); these are the only hard blockers left. (a) **FCM project + APNs key** → set Supabase secret `FCM_SERVICE_ACCOUNT`; until then native sends log as `suppressed`. (b) **Transistorsoft background-geolocation license**, ~$300-400 **per platform** — buy before beta, the free plugin loses its watcher on process kill/reboot. (c) **Google Play registration $25**. (d) **App Review background-location justification + privacy labels** — drafted, see `docs/STORE-SUBMISSION-LOCATION.md`; remaining: demo account, review video, privacy-policy page update (checklist in that doc).
 - **#34 Custom SMTP** — top pre-tester blocker. Default Supabase email is rate-limited (~30/hr) and lands in spam; testers may never get confirmation/reset emails. Provide SendGrid/SES/Postmark creds → ~10-min wire-up.
 - **#53 Twilio + #35 A2P 10DLC** — carrier approval to text consumers takes 1–3 weeks. Gates en-route SMS and spend-alert SMS. Start registration now.
 - **#54 PITR backups + restore runbook** — enable PITR on the APP project; only catastrophic-risk item left. Runbook already written (Desktop).
@@ -26,7 +26,7 @@ Server side is **done and proven**; see `docs/PROXIMITY-PUSH.md` for detail and 
 
 - **#64 Generate the native projects** — `npx cap add ios && npx cap add android`, drop in `GoogleService-Info.plist` / `google-services.json`, add iOS background-location + push entitlements. Blocked only by #63(a).
 - **#65 Deploy the two edge functions** — `location-ingest` **with** JWT verify, `proximity-dispatch` with `--no-verify-jwt` + `CRON_SECRET`. Then schedule `proximity-dispatch` every minute.
-- **#66 Cutover from `notify-proximity`** — run both (they share the `proximity_pushes` dedupe key, so no double-sends), then retire the legacy function once native coverage is real. Its push copy also uses the banned donut emoji; fix or delete on retirement.
+- **#66 Cutover from `notify-proximity`** — run both (they share the `proximity_pushes` dedupe key, so no double-sends), then retire the legacy function once native coverage is real. (Its donut-emoji push copy was fixed and redeployed as v10 on 2026-08-17.)
 - **#67 Staged switch-on** — flip `app_config.proximity_push_enabled = 'true'`, then enable `tenant_proximity_config` one territory at a time (Ocala first). Watch opt-in rate and CTR via `get_proximity_metrics()`.
 - **#68 Operator + customer controls UI** — customer prefs component is built and wired into `/account`; still need the per-tenant admin toggle/radius screen for operators.
 - **#69 Swap in Transistorsoft** — one line in `pickProvider()` once #63(b) is purchased. Do this before beta, not after.
