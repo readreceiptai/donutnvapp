@@ -2,6 +2,12 @@
 
 Why things are the way they are. Newest first. Update this whenever a non-obvious call is made.
 
+## 2026-08-18
+
+- **App identifier is `com.donutnv.app` on both platforms, no rename.** Kevin's call. It reads right, it is the public Play Store URL, and for any white-label future each client gets its own brand-named ID, so a `com.trenchlogic.*` prefix would be wrong here. Verified identical in `capacitor.config.json`, Android `applicationId`/`namespace`, the compiled APK, and iOS `PRODUCT_BUNDLE_IDENTIFIER`. Fallback: if the App ID is taken in the Apple team, Kevin supplies the exact replacement and it is renamed in one pass **before** any store listing exists.
+- **Repo stays in `~/Desktop/Builds/donutnvapp` until after the franchisee demo.** iCloud Desktop sync minted ` 2` conflict copies of ~23 files during the Capacitor scaffold and one (`config 2.xml`) broke the Android resource merge. The permanent fix is moving out of `~/Desktop`, but Kevin will do that himself post-demo, coordinated with the other Cowork session and the Netlify deploy directory. Until then: sweep conflict copies on sight. Demo is unaffected (runs off the deployed site).
+- **Merge gate for `feature/proximity-push`: a real push landing on a real phone.** Not before. Kill switch stays `false` throughout.
+
 ## 2026-08-16
 
 - **Option B (live proximity push) server-side pipeline built** on branch `feature/proximity-push`. Full detail in `docs/PROXIMITY-PUSH.md`. The non-obvious calls:
