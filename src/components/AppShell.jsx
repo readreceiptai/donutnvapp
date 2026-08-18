@@ -20,7 +20,7 @@ export default function AppShell({ children }) {
       {children}
       <FeedbackButton role="customer" />
       <nav className="tabbar">
-        <NavLink to="/" end>{({ isActive }) => <Tab active={isActive} ico="📍" label="Find" />}</NavLink>
+        <NavLink to="/find">{({ isActive }) => <Tab active={isActive} ico="📍" label="Find" />}</NavLink>
         <NavLink to="/rewards">{({ isActive }) => <Tab active={isActive} ico={<MiniDonut size={24} />} label="Rewards" />}</NavLink>
         <NavLink to="/games">{({ isActive }) => <Tab active={isActive} ico="🎮" label="Games" />}</NavLink>
         <NavLink to="/book">{({ isActive }) => <Tab active={isActive} ico="🚚" label="Book" />}</NavLink>

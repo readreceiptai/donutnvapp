@@ -26,6 +26,11 @@ export default function Find() {
   const [routed, setRouted] = useState(false)
   const [mapError, setMapError] = useState('')
   const [pushAlert, setPushAlert] = useState(false)   // demo-only proximity push
+  // Cost control: every Google Maps mount is a billable map load. The map is
+  // NOT created on mount; the truck list is the default view and the map only
+  // mounts when the customer taps "Show map". The demo build keeps the old
+  // behaviour (map first) because the demo's opening beat is the spinning pin.
+  const [showMap, setShowMap] = useState(DEMO)
 
   // Demo: fire a "truck is near you" push a few seconds after landing on Find,
   // as if the customer just walked into range. Stays up until tapped.
@@ -63,8 +68,10 @@ export default function Find() {
     return () => clearInterval(timer)
   }, [tenant?.id])
 
-  // Init the map.
+  // Init the map. Runs ONLY once the customer has asked for it (showMap), so
+  // no Maps JS request is made on page load.
   useEffect(() => {
+    if (!showMap) return
     loadGoogleMaps().then((maps) => {
       // Center on this territory's centroid so a customer with no live truck
       // sees their own area, not Florida. Falls back to Palm Harbor only until
@@ -81,7 +88,7 @@ export default function Find() {
         styles: DEMO ? MAP_STYLE_DEMO : MAP_STYLE,
       })
     }).catch((e) => setMapError(e.message))
-  }, [tenant?.lat, tenant?.lng])
+  }, [showMap, tenant?.lat, tenant?.lng])
 
   // Truck markers + fit view (skip the auto-fit while a route is shown).
   useEffect(() => {
@@ -102,7 +109,7 @@ export default function Find() {
       mapRef.current.fitBounds(bounds, 80)
       if (trucks.length === 1) mapRef.current.setZoom(DEMO ? 15 : 14)
     }
-  }, [trucks, routed])
+  }, [trucks, routed, showMap])
 
   // Buzz crowd: stylized fans scattered near the truck (decorative — NOT real
   // customer locations). Count scales with today's check-ins, capped so it reads.
@@ -122,10 +129,11 @@ export default function Find() {
         position: pos, map: mapRef.current, icon: fanIcon(maps, i), clickable: false, zIndex: 5,
       }))
     }
-  }, [trucks, buzz])
+  }, [trucks, buzz, showMap])
 
   async function showRoute() {
     if (!trucks[0]) return
+    if (!showMap) setShowMap(true)   // the route draws onto the map
     setRouteMsg('Getting your location…')
     if (!('geolocation' in navigator)) { setRouteMsg('Location isn’t available on this device.'); return }
     navigator.geolocation.getCurrentPosition(async (p) => {
@@ -139,6 +147,10 @@ export default function Find() {
           suppressMarkers: true, preserveViewport: false,
           polylineOptions: { strokeColor: '#DD1B22', strokeWeight: 5, strokeOpacity: 0.9 },
         })
+        // If the map was lazily shown by this very tap, its init effect may not
+        // have run yet; wait for mapRef rather than drawing the route onto null.
+        for (let i = 0; i < 40 && !mapRef.current; i++) await new Promise((r) => setTimeout(r, 50))
+        if (!mapRef.current) throw new Error('map-not-ready')
         dirRenderer.current.setMap(mapRef.current)
         dirRenderer.current.setDirections(res)
         const leg = res.routes[0].legs[0]
@@ -193,7 +205,13 @@ export default function Find() {
         </span>
       </div>
 
-      {!mapError && <div ref={mapEl} className="map" />}
+      {showMap && !mapError && <div ref={mapEl} className="map" />}
+      {!showMap && !mapError && (
+        <button className="btn btn-blue" onClick={() => setShowMap(true)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <span aria-hidden="true">🗺️</span> Show map
+        </button>
+      )}
 
       {isOpen && (
         route ? (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import QRCode from 'qrcode'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import AddToWallet from '../components/AddToWallet'
@@ -32,12 +33,37 @@ function Sprinkle({ s }) {
 export default function Rewards() {
   const { profile, tenant } = useAuth()
   const [r, setR] = useState(null)
+  const [qr, setQr] = useState('')          // data-URL of the referral QR
+  const [shareNote, setShareNote] = useState('')
 
   useEffect(() => {
     if (!profile?.id) return
     supabase.rpc('get_member_rewards', { p_profile: profile.id })
       .then(({ data }) => setR(Array.isArray(data) ? data[0] : data))
   }, [profile])
+
+  // Referral link + QR. Same URL the wallet pass encodes, so the in-app QR and
+  // the pass QR always agree. Generated locally (no network) as a data URL.
+  const referralCode = profile?.referral_code || ''
+  const referralUrl = referralCode ? `https://donutnvapp.com/r/${referralCode}` : ''
+  useEffect(() => {
+    if (!referralUrl) { setQr(''); return }
+    QRCode.toDataURL(referralUrl, { width: 220, margin: 1, color: { dark: C.ink, light: '#ffffff' } })
+      .then(setQr).catch(() => setQr(''))
+  }, [referralUrl])
+
+  async function share() {
+    if (!referralUrl) return
+    const text = `Join me on DonutNV and we both get rewarded. Use my code ${referralCode}: ${referralUrl}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'DonutNV', text, url: referralUrl })
+        return
+      }
+      await navigator.clipboard.writeText(referralUrl)
+      setShareNote('Link copied'); setTimeout(() => setShareNote(''), 1800)
+    } catch { /* user cancelled the share sheet; nothing to do */ }
+  }
 
   const balance = r?.points_balance ?? 0
   const tier = r?.tier ?? 'Glazed'
@@ -101,7 +127,6 @@ export default function Rewards() {
         <div style={{ position: 'relative', padding: '20px 22px' }}>
           {SPRINKLES_BACK.map((s, i) => <Sprinkle key={i} s={s} />)}
           <div style={{ position: 'relative', zIndex: 2 }}>
-            <div style={{ color: C.blue, fontWeight: 800, letterSpacing: 2.5, fontSize: 15, marginBottom: 12 }}>BACK OF PASS</div>
             <Row label="Free dozen at" value={`${freeDozen.toLocaleString()} pts`} first />
             <Row label="Birthday treat" value="Free dozen donuts" />
             <Row label="Home truck" value={homeTruck} />
@@ -111,6 +136,34 @@ export default function Rewards() {
           </div>
         </div>
       </div>
+
+      {/* ── Invite friends (referral) ── */}
+      {referralCode && (
+        <div style={{ ...card, marginTop: 16 }}>
+          <div style={{ position: 'relative', padding: '20px 22px' }}>
+            <div style={{ color: C.blue, fontWeight: 800, letterSpacing: 2.5, fontSize: 15 }}>INVITE FRIENDS</div>
+            <p style={{ color: '#5b544d', fontSize: 15, margin: '8px 0 14px', lineHeight: 1.45 }}>
+              Share your code and earn rewards when friends join.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              {qr
+                ? <img src={qr} alt={`Your DonutNV referral QR code, ${referralCode}`} width={110} height={110}
+                       style={{ borderRadius: 12, border: '1px solid #ece7e0', flexShrink: 0 }} />
+                : <div style={{ width: 110, height: 110, borderRadius: 12, background: C.cream }} />}
+              <div style={{ flex: 1, minWidth: 150 }}>
+                <div style={{ color: C.label, letterSpacing: 2, fontSize: 12, fontWeight: 700 }}>YOUR CODE</div>
+                <div style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 26, fontWeight: 800, letterSpacing: 3, color: C.ink, marginTop: 4 }}>
+                  {referralCode}
+                </div>
+                <button className="btn btn-primary" onClick={share} style={{ marginTop: 12, width: 'auto', padding: '10px 18px' }}>
+                  Share
+                </button>
+                {shareNote && <span className="muted" style={{ marginLeft: 10, fontSize: '.85rem' }}>{shareNote}</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: 16 }}><AddToWallet /></div>
     </div>

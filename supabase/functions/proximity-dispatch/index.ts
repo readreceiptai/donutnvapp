@@ -330,7 +330,7 @@ Deno.serve(async (req) => {
                 token: t.token,
                 notification: { title: msg.title, body: msg.body },
                 data: {
-                  url: '/', truck_id: c.truck_id, session_id: c.session_id,
+                  url: '/find', truck_id: c.truck_id, session_id: c.session_id,
                   distance_m: String(c.distance_m),
                 },
                 // High priority + APNs alert so the push actually surfaces on a
@@ -386,7 +386,7 @@ Deno.serve(async (req) => {
         try {
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: sub.keys },
-            JSON.stringify({ title: msg.title, body: msg.body, url: '/' }),
+            JSON.stringify({ title: msg.title, body: msg.body, url: '/find' }),
           )
           await supabase.from('proximity_notification_log').insert({
             ...logRow, channel: 'web', status: 'sent',
