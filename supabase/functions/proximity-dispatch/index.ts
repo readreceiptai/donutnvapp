@@ -26,6 +26,10 @@ const supabase = createClient(
 )
 
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
+// Probe-only secret. Unlocks ?validate_fcm=1 and NOTHING else: real dispatch
+// still requires CRON_SECRET. Lets the FCM auth chain be verified without
+// anyone needing to know (or rotate) the shared cron secret.
+const PROXIMITY_PROBE_SECRET = Deno.env.get('PROXIMITY_PROBE_SECRET') ?? ''
 
 // Web push (existing channel, unchanged config)
 const VAPID_PUB = Deno.env.get('VAPID_PUBLIC_KEY') ?? ''
@@ -166,13 +170,19 @@ type Candidate = {
 }
 
 Deno.serve(async (req) => {
-  // Internal / scheduled use only. Fail closed if the secret is unset.
-  if (!CRON_SECRET || req.headers.get('x-cron-secret') !== CRON_SECRET) {
-    return new Response('forbidden', { status: 403 })
-  }
-
   const url = new URL(req.url)
   const dryRun = url.searchParams.get('dry_run') === '1'
+  const isProbe = url.searchParams.get('validate_fcm') === '1'
+  const presented = req.headers.get('x-cron-secret') ?? ''
+
+  // Internal / scheduled use only. Fail closed if the secret is unset.
+  // The probe mode additionally accepts PROXIMITY_PROBE_SECRET; every other
+  // path (dry_run, real dispatch) accepts CRON_SECRET only.
+  const cronOk  = !!CRON_SECRET && presented === CRON_SECRET
+  const probeOk = isProbe && !!PROXIMITY_PROBE_SECRET && presented === PROXIMITY_PROBE_SECRET
+  if (!cronOk && !probeOk) {
+    return new Response('forbidden', { status: 403 })
+  }
 
   // ── validate_fcm=1: prove the FCM auth chain without delivering anything ──
   // Mints the OAuth token from FCM_SERVICE_ACCOUNT, then calls messages:send
@@ -181,7 +191,7 @@ Deno.serve(async (req) => {
   // delivery step, so a healthy chain returns exactly the "invalid token"
   // error, which is the pass signal. Runs before the matcher: never touches
   // the kill switch, tenant config, or customer data. Still behind CRON_SECRET.
-  if (url.searchParams.get('validate_fcm') === '1') {
+  if (isProbe) {
     if (!FCM_SERVICE_ACCOUNT) {
       return new Response(JSON.stringify({ ok: false, stage: 'secret', error: 'FCM_SERVICE_ACCOUNT not set' }),
         { status: 200, headers: { 'content-type': 'application/json' } })
