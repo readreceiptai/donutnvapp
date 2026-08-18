@@ -11,3 +11,8 @@ __wtest
 
 # Local Netlify folder
 .netlify
+
+# Firebase / push credentials (Option B). Client config files carry API keys;
+# never commit them. Kevin holds the originals.
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist

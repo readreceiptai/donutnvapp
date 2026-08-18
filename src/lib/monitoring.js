@@ -12,11 +12,21 @@ let enabled = false
 export function initMonitoring() {
   const dsn = import.meta.env.VITE_SENTRY_DSN
   if (!dsn) return
+  // Native shells (Capacitor) get their own environment so Simulator/TestFlight
+  // runs never mix into the web 'production' bucket. Detected via the URL
+  // scheme, which is capacitor:// on iOS and https://localhost on Android.
+  const isNative = typeof window !== 'undefined' &&
+    (window.location.protocol === 'capacitor:' ||
+     (window.location.protocol === 'https:' && window.location.hostname === 'localhost'))
+  const platform = isNative
+    ? (window.location.protocol === 'capacitor:' ? 'ios' : 'android')
+    : 'web'
   Sentry.init({
     dsn,
-    environment: import.meta.env.MODE || 'production',
+    environment: isNative ? `native-${platform}` : (import.meta.env.MODE || 'production'),
     tracesSampleRate: 0.1,
   })
+  Sentry.setTag('platform', platform)
   enabled = true
 }
 

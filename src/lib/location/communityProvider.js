@@ -21,9 +21,19 @@ function emit(fix) {
   }
 }
 
-async function plugin() {
+// IMPORTANT: this must NOT be an async function and callers must NOT `await`
+// its result. Capacitor's registerPlugin() returns a Proxy that turns EVERY
+// property read into a native bridge call. `await proxy` makes JS read
+// `proxy.then` to test for a thenable, which the Proxy forwards to native as a
+// method call and iOS throws: '"BackgroundGeolocation.then()" is not
+// implemented on ios'. Found via Sentry during the iOS Simulator test.
+// Cached in a plain variable so the proxy is created once.
+let _plugin = null
+async function loadPlugin() {
+  if (_plugin) return { p: _plugin }          // wrapped so awaiting never touches the proxy
   const { registerPlugin } = await import('@capacitor/core')
-  return registerPlugin('BackgroundGeolocation')
+  _plugin = registerPlugin('BackgroundGeolocation')
+  return { p: _plugin }
 }
 
 /** @type {import('./provider.js').LocationProvider} */
@@ -31,7 +41,7 @@ export const communityProvider = {
   name: 'community',
 
   async isAvailable() {
-    try { await plugin(); return true } catch { return false }
+    try { await loadPlugin(); return true } catch { return false }
   },
 
   // The plugin asks for permission as part of addWatcher (requestPermissions:
@@ -45,7 +55,7 @@ export const communityProvider = {
   async startTracking(opts = {}) {
     if (watcherId) return // already running
 
-    const BackgroundGeolocation = await plugin()
+    const { p: BackgroundGeolocation } = await loadPlugin()
 
     watcherId = await BackgroundGeolocation.addWatcher(
       {
@@ -59,6 +69,7 @@ export const communityProvider = {
         distanceFilter: opts.distanceFilter ?? DEFAULT_DISTANCE_FILTER,
       },
       (location, error) => {
+        if (error) console.warn('[location] watcher error', error.code)
         if (error) {
           // NOT_AUTHORIZED means the user declined or revoked "Always". Stop
           // rather than retry forever, so we neither drain battery nor nag.
@@ -92,7 +103,7 @@ export const communityProvider = {
 async function stopInternal() {
   if (!watcherId) return
   try {
-    const BackgroundGeolocation = await plugin()
+    const { p: BackgroundGeolocation } = await loadPlugin()
     await BackgroundGeolocation.removeWatcher({ id: watcherId })
   } catch (err) {
     console.error('[location] removeWatcher failed', err)

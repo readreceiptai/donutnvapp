@@ -48,11 +48,13 @@ async function flush() {
     })
 
     if (!res.ok) {
+      console.warn('[location] flush: HTTP', res.status, await res.text().catch(() => ''))
       buffer = batch.slice(-MAX_BUFFER).concat(buffer)
       return
     }
 
     const out = await res.json().catch(() => ({}))
+    console.log('[location] flushed', batch.length, 'fix(es):', JSON.stringify(out))
 
     // The server is the authority on opt-in state. If the customer turned
     // alerts off on another device, stop burning battery here immediately.
@@ -66,11 +68,18 @@ async function flush() {
   }
 }
 
+let firstFixSent = false
+
 function onFix(fix) {
   buffer.push(fix)
   // Drop OLDEST on overflow: for "where is this customer now", the newest fix
   // is the one that matters.
   if (buffer.length > MAX_BUFFER) buffer = buffer.slice(-MAX_BUFFER)
+  // First fix after tracking starts goes up immediately, so a customer who just
+  // opted in or just relaunched is matchable right away. Everything after that
+  // batches (size or timer). A fixed post-start timer raced the plugin's first
+  // fix in the iOS Simulator test; keying on the fix itself cannot race.
+  if (!firstFixSent) { firstFixSent = true; flush(); return }
   if (buffer.length >= FLUSH_BATCH_SIZE) flush()
 }
 
@@ -95,6 +104,7 @@ async function stopTracking() {
   flushTimer = null
   running = false
   buffer = []
+  firstFixSent = false
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -155,9 +165,6 @@ export async function enableProximityAlerts(profile, opts = {}) {
   if (error) return { ok: false, reason: 'Could not save your settings. Try again.' }
 
   await startTracking()
-  // Send one fix immediately so the customer is matchable right away rather
-  // than only after their first 500m of movement.
-  setTimeout(flush, 2000)
   return { ok: true }
 }
 

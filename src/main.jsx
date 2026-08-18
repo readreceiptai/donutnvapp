@@ -6,6 +6,7 @@ import { territoryBasename } from './lib/territory'
 import App from './App'
 import BetaGate from './components/BetaGate'
 import ErrorBoundary from './components/ErrorBoundary'
+import NativeBoot from './components/NativeBoot'
 import { initMonitoring } from './lib/monitoring'
 import './index.css'
 
@@ -19,6 +20,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
       <BrowserRouter basename={territoryBasename()}>
         <AuthProvider>
+          <NativeBoot />
           <BetaGate>
             <App />
           </BetaGate>
