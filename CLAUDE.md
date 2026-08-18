@@ -2,7 +2,7 @@
 
 **This file auto-loads into any Claude session opened in this folder. Read it first, then the `docs/` files it points to. It is the single source of truth for the whole platform.**
 
-Maintained by Kevin McLenithan (Trench Logic). Last updated: 2026-08-16.
+Maintained by Kevin McLenithan (Trench Logic). Last updated: 2026-08-18.
 
 ---
 
@@ -34,7 +34,7 @@ Built for DonutNV, a mini-donut franchise. Customers = "Z" / "Zee" (franchisee o
 
 ## Current status (2026-08-16)
 
-- **Option B (live proximity push)** server-side pipeline is **built, applied to the APP DB, and proven end to end** on branch `feature/proximity-push`. Six new additive tables (RLS deny-by-default, no `anon` grant), a PostGIS `ST_DWithin` matcher with the full rules layer, and two edge functions written but not deployed. **Ships OFF**: `app_config.proximity_push_enabled = 'false'` and every tenant toggle defaults false. Benchmarked at 100 trucks x 100K customers in ~1s. Remaining blockers are purchases and credentials (FCM/APNs key, Transistorsoft license, Play registration) — see `docs/PROXIMITY-PUSH.md` and ROADMAP #63-69. **Nothing on `main` was touched.**
+- **Option B (live proximity push)** server-side pipeline is **built, applied to the APP DB, and proven end to end** on branch `feature/proximity-push`. Six new additive tables (RLS deny-by-default, no `anon` grant), a PostGIS `ST_DWithin` matcher with the full rules layer, and two edge functions written but not deployed. **Now an active track toward closed beta**: Android shell **building green**, iOS configured but blocked on Xcode install, priming screen Play-compliant, and both edge functions **deployed dormant** (no cron + kill switch `false` + empty tenant config = three locks; probed 401/403 from outside). Merge to `main` only after a real push lands on a real phone. Blockers: Xcode, FCM/APNs credentials, Transistorsoft license, Play registration — see `docs/PROXIMITY-PUSH.md` and ROADMAP #63-69.
 
 ## Status as of 2026-08-13
 

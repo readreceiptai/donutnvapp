@@ -1,8 +1,8 @@
 # Option B — Live Proximity Push
 
-**Status: server-side pipeline built, applied to the APP DB, and proven end to end. Shipped OFF behind a global kill switch. Native shell not yet generated; no push credentials wired.**
+**Status: active build toward closed beta. Server pipeline live-but-dormant: `location-ingest` v1 + `proximity-dispatch` v1 deployed (no cron, kill switch `false`, tenant config empty = three independent locks). Android shell scaffolded, configured, and building green (app-debug.apk). iOS shell scaffolded + configured; build blocked on Xcode install. No push credentials wired yet.**
 
-Branch: `feature/proximity-push`. Last updated: 2026-08-16.
+Branch: `feature/proximity-push`. Last updated: 2026-08-18.
 
 The controllable "a truck is near you" push at a radius we choose (default 5 mi).
 Apple Wallet caps proximity relevance at ~0.62 mi and Google controls its own
@@ -146,12 +146,22 @@ this; fixed and redeployed (v10, 2026-08-17).
 
 ---
 
-## Not done yet / needed to go live
+## Remaining to go live (updated 2026-08-18)
 
-1. **Purchase decisions:** Transistorsoft license (~$300-400 per platform), Google Play registration ($25). Apple Developer already paid.
-2. **FCM project + APNs key.** Set `FCM_SERVICE_ACCOUNT` (whole service-account JSON) as a Supabase secret. Kept separate from every existing secret per the isolation rules. Until it is set, native sends are logged as `suppressed / FCM not configured` and web push still works.
-3. **Generate the native projects:** `npx cap add ios && npx cap add android`, add `GoogleService-Info.plist` / `google-services.json`, and the iOS background-location + push entitlements.
-4. **Deploy the functions:** `location-ingest` **with** JWT verification, `proximity-dispatch` with `--no-verify-jwt` (gated by `CRON_SECRET`, matching `notify-proximity`).
-5. **Schedule** `proximity-dispatch` every minute, then **retire `notify-proximity`** once native coverage is real.
-6. **Flip the switches:** `app_config.proximity_push_enabled = 'true'`, then per-tenant `tenant_proximity_config.enabled` one territory at a time.
-7. **App Review:** background-location justification and privacy nutrition labels. **Drafted: `docs/STORE-SUBMISSION-LOCATION.md`** (purpose strings, review notes, Play prominent disclosure + video script, both privacy-label forms, pre-submission checklist). The 24h retention and own-row-only reads above are what make the story defensible.
+Done since the first draft: native projects generated and configured (Android
+builds green; iOS configured, awaiting Xcode), priming screen carries Play's
+verbatim prominent disclosure, both edge functions deployed dormant
+(`location-ingest` verify_jwt ON, probed 401 without a token;
+`proximity-dispatch` CRON_SECRET-gated, probed 403 on wrong secret).
+
+**Kevin (critical path):**
+1. **Install Xcode** on this Mac (App Store, ~12GB) then `sudo xcode-select -s /Applications/Xcode.app`. Nothing iOS can compile without it; CocoaPods is already installed and waiting.
+2. **FCM project + APNs key** -> set `FCM_SERVICE_ACCOUNT` secret; drop `google-services.json` into `android/app/` (build auto-detects it) and `GoogleService-Info.plist` into `ios/App/App/`. Until then native sends log as `suppressed / FCM not configured`; web push unaffected.
+3. **Transistorsoft license** (~$300-400/platform) before beta; swap is one line in `pickProvider()`.
+4. **Google Play registration** ($25); TestFlight + Play internal testing tracks; Android test devices.
+
+**Then (code side, after credentials):**
+5. iOS entitlements (push + background modes are set in Info.plist; the aps-environment entitlement lands with the signing team in Xcode), `npx cap sync ios`, build.
+6. Real-device end-to-end: simulated truck move -> real push on a phone. **Merge to `main` only after this is seen.**
+7. Schedule `proximity-dispatch` every minute; flip `app_config.proximity_push_enabled = 'true'`; enable tenants one at a time (Ocala first); retire `notify-proximity` after cutover.
+8. Store submission per `docs/STORE-SUBMISSION-LOCATION.md` checklist (demo account, review video, privacy policy page).
