@@ -17,7 +17,10 @@ end
 
 target 'App' do
   capacitor_pods
-  # Add your Pods here
+  # Option B: Firebase Messaging so the APNs token is exchanged for an FCM
+  # token. proximity-dispatch sends via FCM HTTP v1 for BOTH platforms, so
+  # iOS must register FCM tokens, not raw APNs tokens.
+  pod 'FirebaseMessaging'
 end
 
 post_install do |installer|

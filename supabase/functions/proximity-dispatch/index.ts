@@ -171,7 +171,66 @@ Deno.serve(async (req) => {
     return new Response('forbidden', { status: 403 })
   }
 
-  const dryRun = new URL(req.url).searchParams.get('dry_run') === '1'
+  const url = new URL(req.url)
+  const dryRun = url.searchParams.get('dry_run') === '1'
+
+  // ── validate_fcm=1: prove the FCM auth chain without delivering anything ──
+  // Mints the OAuth token from FCM_SERVICE_ACCOUNT, then calls messages:send
+  // with validate_only=true against a deliberately invalid device token.
+  // Google validates auth + project + message shape and replies BEFORE any
+  // delivery step, so a healthy chain returns exactly the "invalid token"
+  // error, which is the pass signal. Runs before the matcher: never touches
+  // the kill switch, tenant config, or customer data. Still behind CRON_SECRET.
+  if (url.searchParams.get('validate_fcm') === '1') {
+    if (!FCM_SERVICE_ACCOUNT) {
+      return new Response(JSON.stringify({ ok: false, stage: 'secret', error: 'FCM_SERVICE_ACCOUNT not set' }),
+        { status: 200, headers: { 'content-type': 'application/json' } })
+    }
+    let parsedOk = false, projectId = '', clientEmail = ''
+    try {
+      const sa = JSON.parse(FCM_SERVICE_ACCOUNT)
+      parsedOk = !!(sa.client_email && sa.private_key && sa.project_id)
+      projectId = sa.project_id ?? ''
+      clientEmail = sa.client_email ? sa.client_email.replace(/^(.{6}).*(@.*)$/, '$1…$2') : ''
+    } catch { /* fallthrough */ }
+    if (!parsedOk) {
+      return new Response(JSON.stringify({ ok: false, stage: 'parse', error: 'secret is not a complete service-account JSON' }),
+        { status: 200, headers: { 'content-type': 'application/json' } })
+    }
+    const fcmAuth = await getFcmAccessToken()
+    if (!fcmAuth) {
+      return new Response(JSON.stringify({ ok: false, stage: 'oauth', project: projectId, client: clientEmail,
+        error: 'token mint/exchange failed (see function logs)' }),
+        { status: 200, headers: { 'content-type': 'application/json' } })
+    }
+    const res = await fetch(`https://fcm.googleapis.com/v1/projects/${fcmAuth.projectId}/messages:send`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${fcmAuth.token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        validate_only: true,
+        message: {
+          token: 'validate-probe-not-a-real-device-token',
+          notification: { title: 'validate', body: 'validate' },
+        },
+      }),
+    })
+    const body = await res.json().catch(() => ({}))
+    const code = body?.error?.details?.[0]?.errorCode ?? body?.error?.status ?? (res.ok ? 'OK' : String(res.status))
+    // Auth/project healthy → Google gets far enough to reject the fake token.
+    const chainHealthy = res.ok || code === 'INVALID_ARGUMENT' || code === 'UNREGISTERED'
+    return new Response(JSON.stringify({
+      ok: chainHealthy,
+      stage: chainHealthy ? 'complete' : 'fcm',
+      project: fcmAuth.projectId,
+      client: clientEmail,
+      oauth: 'minted',
+      fcm_http: res.status,
+      fcm_code: code,
+      note: chainHealthy
+        ? 'FCM auth chain verified end to end; nothing was delivered'
+        : 'FCM rejected the request before token validation; check project/permissions',
+    }), { status: 200, headers: { 'content-type': 'application/json' } })
+  }
 
   // ── 1. Match. All rules (kill switch, tenant enabled, opt-in, radius,
   //       freshness, quiet hours, frequency caps, session dedupe) live in the
