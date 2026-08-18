@@ -1,8 +1,8 @@
 # Option B — Live Proximity Push
 
-**Status: active build toward closed beta. Server pipeline live-but-dormant (`location-ingest` v1 + `proximity-dispatch` v1 deployed; no cron, kill switch `false`, tenant config empty = three locks). BOTH native shells build green: Android APK with FCM baked in (google-services.json placed), iOS App.app running in the iPhone 17 Simulator with entitlements wired. Capture -> ingest proven end-to-end on iOS with simulated GPS. Awaiting: iOS GoogleService-Info.plist, FCM_SERVICE_ACCOUNT secret, real device.**
+**Status: everything short of a physical phone is DONE and verified. Server pipeline deployed dormant (`location-ingest` v1, `proximity-dispatch` v7; no cron, kill switch `false`, tenant config empty = three locks). Both native shells build green with Firebase wired: Android APK (FCM baked in) and iOS App.app (Firebase Messaging pod, APNs->FCM bridge, plist bundled). Capture->ingest proven end-to-end on iOS. FCM send-path proven end-to-end via the `validate_fcm` probe (OAuth minted, Google accepted project + message shape). Native Maps key live; Find map renders in the shell. CRON_SECRET reset and held by Kevin. **Remaining: the on-device Android push test (`docs/DEVICE-TEST-RUNBOOK.md`) = the merge gate.****
 
-Branch: `feature/proximity-push`. Last updated: 2026-08-18 (evening).
+Branch: `feature/proximity-push`. Last updated: 2026-08-18 (late).
 
 The controllable "a truck is near you" push at a radius we choose (default 5 mi).
 Apple Wallet caps proximity relevance at ~0.62 mi and Google controls its own
@@ -189,10 +189,11 @@ verbatim prominent disclosure, both edge functions deployed dormant
 **Done 2026-08-18 (this session):** Xcode installed + iOS runtime downloaded; iOS builds and runs in the Simulator; `google-services.json` placed (Android FCM live in the APK); capture->ingest proven end-to-end on iOS.
 
 **Kevin (critical path):**
-1. ~~Install Xcode~~ done.
-2. **`GoogleService-Info.plist`** -> `ios/App/App/` (gitignored slot ready) and **`FCM_SERVICE_ACCOUNT`** secret. Android side of Firebase is already wired. Until the secret is set, native sends log as `suppressed / FCM not configured`; web push unaffected.
+1. ~~Install Xcode~~ done. ~~GoogleService-Info.plist~~ placed. ~~FCM_SERVICE_ACCOUNT~~ set + probe-verified. ~~CRON_SECRET~~ reset, held by Kevin, all three readers redeployed. ~~Native Maps key~~ live, quota-capped 5k/day.
+2. **Run the on-device Android test** — `docs/DEVICE-TEST-RUNBOOK.md`, start to Block B. That is the merge gate.
 3. **Transistorsoft license** (~$300-400/platform) before beta; swap is one line in `pickProvider()`.
-4. **Google Play registration** ($25); TestFlight + Play internal testing tracks; Android test devices.
+4. **Google Play registration** ($25); TestFlight + Play internal testing tracks.
+5. Pre-public-launch: raise the Maps native-key quota, reassess the GCP budget, add a Cloud Monitoring quota alert at ~80%.
 
 **Then (code side, after credentials):**
 5. iOS entitlements (push + background modes are set in Info.plist; the aps-environment entitlement lands with the signing team in Xcode), `npx cap sync ios`, build.
