@@ -118,17 +118,25 @@ export default function ProximityAlerts({ profile }) {
 
       {step === 'priming' && (
         <>
-          <p style={{ marginTop: 6 }}>
-            To do this, DonutNV needs your location in the background.
+          {/* Google Play prominent-disclosure requirement: the first sentence
+              below follows Play's mandated formula ("collects location data
+              to [feature], even when the app is closed or not in use") and
+              must stay VERBATIM in sync with the copy filed in
+              docs/STORE-SUBMISSION-LOCATION.md section 6.2. Do not reword one
+              without the other. */}
+          <p style={{ marginTop: 6, fontWeight: 700 }}>
+            DonutNV collects location data to let you know when a truck is
+            serving near you, even when the app is closed or not in use.
           </p>
           {/* The promises below are enforced in the database, not just here:
               the radius cap, quiet hours and frequency caps all live in
               match_proximity_candidates. */}
           <ul className="muted" style={{ marginTop: 6, paddingLeft: 18 }}>
-            <li>We check if you are within {radius} miles of a truck that is open.</li>
+            <li>We only check whether you are within {radius} miles of a truck that is open.</li>
             <li>At most a couple of alerts a day, never between 9pm and 9am.</li>
-            <li>We never share where you are, and we delete the trail every day.</li>
-            <li>You can turn this off any time, right here.</li>
+            <li>Your location is never shared with anyone and is not used for ads.</li>
+            <li>Your location history is deleted every 24 hours.</li>
+            <li>You can turn this off any time, right here in Account.</li>
           </ul>
 
           <div style={{ margin: '12px 0' }}>
@@ -154,13 +162,13 @@ export default function ProximityAlerts({ profile }) {
             "Allow all the time" so we can reach you when the app is closed.
           </p>
 
-          <button className="btn" onClick={confirmOptIn}>Continue</button>
+          <button className="btn" onClick={confirmOptIn}>Agree and continue</button>
           <button
             className="btn"
             onClick={() => setStep('idle')}
             style={{ marginLeft: 8, opacity: 0.6 }}
           >
-            Not now
+            No thanks
           </button>
         </>
       )}
