@@ -1,8 +1,8 @@
 # Option B — Live Proximity Push
 
-**Status: active build toward closed beta. Server pipeline live-but-dormant: `location-ingest` v1 + `proximity-dispatch` v1 deployed (no cron, kill switch `false`, tenant config empty = three independent locks). Android shell scaffolded, configured, and building green (app-debug.apk). iOS shell scaffolded + configured; build blocked on Xcode install. No push credentials wired yet.**
+**Status: active build toward closed beta. Server pipeline live-but-dormant (`location-ingest` v1 + `proximity-dispatch` v1 deployed; no cron, kill switch `false`, tenant config empty = three locks). BOTH native shells build green: Android APK with FCM baked in (google-services.json placed), iOS App.app running in the iPhone 17 Simulator with entitlements wired. Capture -> ingest proven end-to-end on iOS with simulated GPS. Awaiting: iOS GoogleService-Info.plist, FCM_SERVICE_ACCOUNT secret, real device.**
 
-Branch: `feature/proximity-push`. Last updated: 2026-08-18.
+Branch: `feature/proximity-push`. Last updated: 2026-08-18 (evening).
 
 The controllable "a truck is near you" push at a radius we choose (default 5 mi).
 Apple Wallet caps proximity relevance at ~0.62 mi and Google controls its own
@@ -116,6 +116,37 @@ deleted in the same atomic batch. Result: the customer 2 mi away matched at
 that zero rows and zero sentinel users remained and the kill switch was back to
 `false`.
 
+## iOS Simulator proof (2026-08-18)
+
+Ran the real App.app on an iPhone 17 Simulator with a seeded Supabase session
+and `xcrun simctl location` walking the device ~600 m at a time through Ocala.
+Console showed the full chain: `NativeBoot` -> `resumeProximityAlerts` ->
+`BackgroundGeolocation addWatcher` -> CoreLocation fixes into JS -> flush ->
+`location-ingest` replied `{"ok":true,"accepted":1,"tracking_enabled":true}`
+-> row in `customer_positions`. Test user and all rows deleted afterwards.
+
+Bugs this surfaced (fixed): no boot-time resume of tracking; `await` on a
+Capacitor plugin proxy (Sentry: `BackgroundGeolocation.then() is not
+implemented on ios`); first-fix flush racing a timer; native Sentry events
+tagged as web `production`.
+
+**Found, not fixed, needs a decision:** the Google Maps browser key is
+referrer-restricted to `donutnvapp.com`; the native WebView origin is
+`capacitor://localhost` and gets `RefererNotAllowedMapError`. The Find map is
+broken in the native app for everyone until an iOS/Android-restricted key (or
+that origin as an allowed referrer) exists. Not part of Option B; belongs to
+whoever owns the Maps key.
+
+**Test hygiene notes:** iCloud minted 457 conflict copies this session and
+Xcode's folder-reference copy of `App/public` accumulates stale hashed bundles
+inside `App.app`; both produced long stretches of debugging code that was not
+actually running. Recipe that works: sweep `* N.*` files, `rm -rf
+ios/App/App/public`, `npm run build`, `npx cap copy ios`, delete the old
+`App.app` from build products, then `xcodebuild`. If `npx cap sync ios` reports
+pod install failed, run `pod install` directly in `ios/App` (locale quirk; the
+pods are fine). Capacitor forwards `console.log/warn/error` to the native
+console but NOT `console.info`.
+
 ## Native shell
 
 `src/lib/location/` puts the location source behind one interface
@@ -154,9 +185,11 @@ verbatim prominent disclosure, both edge functions deployed dormant
 (`location-ingest` verify_jwt ON, probed 401 without a token;
 `proximity-dispatch` CRON_SECRET-gated, probed 403 on wrong secret).
 
+**Done 2026-08-18 (this session):** Xcode installed + iOS runtime downloaded; iOS builds and runs in the Simulator; `google-services.json` placed (Android FCM live in the APK); capture->ingest proven end-to-end on iOS.
+
 **Kevin (critical path):**
-1. **Install Xcode** on this Mac (App Store, ~12GB) then `sudo xcode-select -s /Applications/Xcode.app`. Nothing iOS can compile without it; CocoaPods is already installed and waiting.
-2. **FCM project + APNs key** -> set `FCM_SERVICE_ACCOUNT` secret; drop `google-services.json` into `android/app/` (build auto-detects it) and `GoogleService-Info.plist` into `ios/App/App/`. Until then native sends log as `suppressed / FCM not configured`; web push unaffected.
+1. ~~Install Xcode~~ done.
+2. **`GoogleService-Info.plist`** -> `ios/App/App/` (gitignored slot ready) and **`FCM_SERVICE_ACCOUNT`** secret. Android side of Firebase is already wired. Until the secret is set, native sends log as `suppressed / FCM not configured`; web push unaffected.
 3. **Transistorsoft license** (~$300-400/platform) before beta; swap is one line in `pickProvider()`.
 4. **Google Play registration** ($25); TestFlight + Play internal testing tracks; Android test devices.
 
