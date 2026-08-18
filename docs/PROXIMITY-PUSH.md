@@ -130,12 +130,13 @@ Capacitor plugin proxy (Sentry: `BackgroundGeolocation.then() is not
 implemented on ios`); first-fix flush racing a timer; native Sentry events
 tagged as web `production`.
 
-**Found, not fixed, needs a decision:** the Google Maps browser key is
-referrer-restricted to `donutnvapp.com`; the native WebView origin is
-`capacitor://localhost` and gets `RefererNotAllowedMapError`. The Find map is
-broken in the native app for everyone until an iOS/Android-restricted key (or
-that origin as an allowed referrer) exists. Not part of Option B; belongs to
-whoever owns the Maps key.
+**Google Maps in the native shell (#70): fixed.** The web key is referrer-locked
+to `donutnvapp.com` and rejected the WebView origin (`capacitor://localhost` /
+`https://localhost`). A separate Maps-JS-only native key
+(`VITE_GOOGLE_MAPS_NATIVE_KEY`) is chosen at runtime by `googleMaps.js` when
+running natively; the web key is untouched. **Never set the native key on
+Netlify** or it ends up in the public web bundle. Verified rendering in the
+iOS Simulator.
 
 **Test hygiene notes:** iCloud minted 457 conflict copies this session and
 Xcode's folder-reference copy of `App/public` accumulates stale hashed bundles
