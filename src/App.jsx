@@ -36,7 +36,7 @@ const OpFeedback = lazy(() => import('./pages/operator/Feedback'))
 const Preview = lazy(() => import('./pages/Preview'))
 
 function Loading() {
-  return <div className="screen pad-top center"><p className="muted" style={{ marginTop: '40vh' }}>Loading…</p></div>
+  return <div className="screen pad-top center"><div style={{ marginTop: '40vh' }}><div className="spinner" /><p className="muted" style={{ marginTop: 14 }}>Loading…</p></div></div>
 }
 
 // Signed in, but no profile row loaded. Happens if signup's complete_signup
