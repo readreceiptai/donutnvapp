@@ -294,6 +294,7 @@ p  { line-height: 1.5; }
 .mk-chip { background: var(--paper); border: 1.5px solid var(--line); border-radius: 999px; padding: 9px 16px; font-weight: 600; font-family: var(--font-head); font-size: .95rem; color: var(--navy); }
 .mk-chip.more { background: var(--red); color: #fff; border-color: var(--red); }
 .mk-fb { display: inline-flex; align-items: center; gap: 9px; background: #1877F2; color: #fff; border: none; border-radius: var(--radius); padding: 13px 22px; font-weight: 700; font-family: var(--font-head); text-decoration: none; }
+.mk-ig { display: inline-flex; align-items: center; gap: 9px; background: linear-gradient(45deg, #F58529, #DD2A7B, #8134AF, #515BD4); color: #fff; border: none; border-radius: var(--radius); padding: 13px 22px; font-weight: 700; font-family: var(--font-head); text-decoration: none; }
 .mk-band.cream { background: var(--cream); color: var(--ink); }
 .mk-band.cream h2 { color: var(--ink); }
 .mk-owner-link { color: var(--muted); font-size: .72rem; opacity: .55; text-decoration: none; }
