@@ -21,9 +21,17 @@ export function initMonitoring() {
   const platform = isNative
     ? (window.location.protocol === 'capacitor:' ? 'ios' : 'android')
     : 'web'
+  // vite build always sets MODE=production, so a locally served production
+  // bundle (vite preview, a file server) would otherwise pollute the real
+  // production error stream. Native is checked first: Android's shell origin
+  // is https://localhost and must stay native-android, not local.
+  const isLocalWeb = !isNative && typeof window !== 'undefined' &&
+    ['localhost', '127.0.0.1'].includes(window.location.hostname)
   Sentry.init({
     dsn,
-    environment: isNative ? `native-${platform}` : (import.meta.env.MODE || 'production'),
+    environment: isNative ? `native-${platform}`
+      : isLocalWeb ? 'local'
+      : (import.meta.env.MODE || 'production'),
     tracesSampleRate: 0.1,
   })
   Sentry.setTag('platform', platform)
