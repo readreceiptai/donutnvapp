@@ -9,21 +9,23 @@ import AddToWallet from '../components/AddToWallet'
 const C = { red: '#DD1B22', redDeep: '#8B1116', blue: '#023462', sky: '#1772AC', ink: '#141210', label: '#9a938c', cream: '#F4F1EC' }
 
 // Decorative sprinkles (brand colors), positioned as % of the card.
+// Positioned only in whitespace — the left-middle band (balance number, tier)
+// and the member/note rows are kept clear of sprinkles.
 const SPRINKLES_TOP = [
   { t: '15%', l: '40%', r: -18, c: C.sky }, { t: '11%', l: '86%', r: 24, c: C.red },
-  { t: '30%', l: '8%', r: 12, c: C.sky }, { t: '22%', l: '66%', r: 40, c: '#F5C518' },
-  { t: '44%', l: '28%', r: -28, c: '#ED93B1' }, { t: '38%', l: '5%', r: 18, c: '#F5C518' },
-  { t: '55%', l: '18%', r: 32, c: '#F0997B' },
-  { t: '46%', l: '46%', r: 20, c: C.sky }, { t: '52%', l: '56%', r: -24, c: '#F5C518' },
-  { t: '58%', l: '44%', r: 36, c: C.red }, { t: '49%', l: '62%', r: 8, c: '#ED93B1' },
-  { t: '64%', l: '70%', r: -18, c: '#F5C518' }, { t: '70%', l: '86%', r: 28, c: C.sky },
-  { t: '76%', l: '74%', r: -32, c: '#F0997B' }, { t: '67%', l: '92%', r: 14, c: C.red },
-  { t: '80%', l: '60%', r: 22, c: '#F5C518' }, { t: '61%', l: '82%', r: -12, c: '#ED93B1' },
+  { t: '18%', l: '10%', r: 12, c: C.sky }, { t: '22%', l: '66%', r: 40, c: '#F5C518' },
+  { t: '73%', l: '14%', r: -28, c: '#ED93B1' }, { t: '24%', l: '24%', r: 18, c: '#F5C518' },
+  { t: '74%', l: '32%', r: 32, c: '#F0997B' },
+  { t: '16%', l: '54%', r: 20, c: C.sky }, { t: '52%', l: '58%', r: -24, c: '#F5C518' },
+  { t: '72%', l: '50%', r: 36, c: C.red }, { t: '49%', l: '64%', r: 8, c: '#ED93B1' },
+  { t: '64%', l: '72%', r: -18, c: '#F5C518' }, { t: '70%', l: '86%', r: 28, c: C.sky },
+  { t: '76%', l: '76%', r: -32, c: '#F0997B' }, { t: '67%', l: '92%', r: 14, c: C.red },
+  { t: '40%', l: '82%', r: 22, c: '#F5C518' }, { t: '61%', l: '82%', r: -12, c: '#ED93B1' },
 ]
 const SPRINKLES_BACK = [
-  { t: '12%', l: '80%', r: -20, c: '#ED93B1' }, { t: '8%', l: '58%', r: 24, c: C.sky },
-  { t: '26%', l: '42%', r: 40, c: '#F5C518' }, { t: '30%', l: '72%', r: -14, c: C.red },
-  { t: '20%', l: '52%', r: 12, c: '#F0997B' },
+  { t: '12%', l: '46%', r: -20, c: '#ED93B1' }, { t: '8%', l: '58%', r: 24, c: C.sky },
+  { t: '26%', l: '42%', r: 40, c: '#F5C518' }, { t: '30%', l: '40%', r: -14, c: C.red },
+  { t: '20%', l: '50%', r: 12, c: '#F0997B' },
 ]
 
 function Sprinkle({ s }) {

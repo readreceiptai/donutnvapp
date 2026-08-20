@@ -55,7 +55,11 @@ export default function Landing() {
   }
 
   const area = tenant?.name || 'your area'
-  const fb = tenant?.brand?.facebook || 'https://www.facebook.com/DonutNVCompany/'
+  const CORP_FB = 'https://www.facebook.com/DonutNVCompany/'
+  const CORP_IG = 'https://www.instagram.com/donutnvofficial/'
+  // Local = this truck's own pages (fall back to corporate if a tenant hasn't set one).
+  const fb = tenant?.brand?.facebook || CORP_FB
+  const ig = tenant?.brand?.instagram || CORP_IG
   const benefitIds = (Array.isArray(tenant?.benefits) && tenant.benefits.length ? tenant.benefits : DEFAULT_BENEFITS)
     .filter((id) => BENEFITS[id])
 
@@ -120,6 +124,7 @@ export default function Landing() {
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link className="btn btn-primary" to="/schedule" style={{ width: 'auto', padding: '14px 28px' }}>See where we'll be</Link>
             <a className="mk-fb" href={fb} target="_blank" rel="noreferrer"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 22v-8h3l1-4h-4V8c0-1.1.9-2 2-2h2V2h-3a5 5 0 0 0-5 5v3H6v4h3v8h4z"/></svg>Follow on Facebook</a>
+            <a className="mk-ig" href={ig} target="_blank" rel="noreferrer"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>Follow on Instagram</a>
           </div>
         </div>
       </div>
@@ -160,13 +165,16 @@ export default function Landing() {
       <div className="mk-band cream">
         <div className="mk-wrap" style={{ textAlign: 'center' }}>
           <h2>Love DonutNV? Own one. <img src="/brand/minidonut.png" alt="" style={{ height: '0.85em', verticalAlign: '-0.08em' }} /></h2>
-          <p>Turn the fun into your own business — an interactive mobile donut franchise with a flat $750/mo royalty (never a percentage) and turnkey equipment. 140+ owners across 25+ states.</p>
+          <p>Turn the fun into your own business — an interactive mobile donut franchise with a flat $750/mo royalty (never a percentage) and turnkey equipment. 100+ units across 25+ states.</p>
           <Link className="btn btn-primary" to="/franchise" style={{ width: 'auto', padding: '14px 28px', display: 'inline-flex' }}>Explore franchising →</Link>
         </div>
       </div>
 
       <div className="mk-wrap mk-footer">
-        <a className="mk-fb" href={fb} target="_blank" rel="noreferrer" style={{ marginBottom: 14 }}><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 22v-8h3l1-4h-4V8c0-1.1.9-2 2-2h2V2h-3a5 5 0 0 0-5 5v3H6v4h3v8h4z"/></svg>Follow {tenant?.name || 'DonutNV'} on Facebook</a>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
+          <a className="mk-fb" href={CORP_FB} target="_blank" rel="noreferrer"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 22v-8h3l1-4h-4V8c0-1.1.9-2 2-2h2V2h-3a5 5 0 0 0-5 5v3H6v4h3v8h4z"/></svg>DonutNV on Facebook</a>
+          <a className="mk-ig" href={CORP_IG} target="_blank" rel="noreferrer"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>DonutNV on Instagram</a>
+        </div>
         <div>{tenant?.name || 'DonutNV'} • Make Your Next Party Sweet!®</div>
         <div style={{ marginTop: 4 }}>By continuing you agree to our Terms & Privacy Policy.</div>
         {/* Discreet franchisee entry — not meant to catch a customer's eye */}

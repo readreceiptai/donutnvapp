@@ -30,15 +30,15 @@ export default function Find() {
   // NOT created on mount; the truck list is the default view and the map only
   // mounts when the customer taps "Show map". The demo build keeps the old
   // behaviour (map first) because the demo's opening beat is the spinning pin.
-  const [showMap, setShowMap] = useState(DEMO)
+  const [showMap, setShowMap] = useState(false)
 
-  // Demo: fire a "truck is near you" push a few seconds after landing on Find,
-  // as if the customer just walked into range. Stays up until tapped.
+  // Demo: once the customer opens the map, fire a "truck is near you" push a few
+  // seconds later, as if a truck just rolled into range. Stays up until tapped.
   useEffect(() => {
-    if (!DEMO) return
-    const t = setTimeout(() => setPushAlert(true), 5000)
+    if (!DEMO || !showMap) return
+    const t = setTimeout(() => setPushAlert(true), 3000)
     return () => clearTimeout(t)
-  }, [])
+  }, [showMap])
 
   // Pull live trucks + positions + today's buzz every 20s.
   useEffect(() => {
