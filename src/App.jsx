@@ -17,6 +17,7 @@ import Games from './pages/Games'
 import Franchise from './pages/Franchise'
 import TrackEvent from './pages/TrackEvent'
 import Schedule from './pages/Schedule'
+import Onboard from './pages/Onboard'
 // Operator + preview screens are code-split into their own chunks, so customers
 // never download the franchisee/ELLE/admin code (and vice-versa). As the second
 // app (ELLE) grows, its route lazy-loads here too.
@@ -81,6 +82,8 @@ export default function App() {
   const onLanding = (path === '/' || path === '') && (PREVIEW || !session)
   // ELLE is its own full-screen product with its own dark skin — no DonutNV chrome.
   const onElle = path === '/elle'
+  // Onboarding is a standalone full-screen wizard that owns its own chrome.
+  const onOnboard = path === '/onboard'
 
   let content
   if (PREVIEW) {
@@ -91,6 +94,7 @@ export default function App() {
         <Route path="/signup" element={<SignUp />} />
         <Route path="/login" element={<Login />} />
         <Route path="/owner" element={<OwnerLogin />} />
+        <Route path="/onboard" element={<Onboard />} />
         <Route path="/book" element={<Book />} />
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/track/:token" element={<TrackEvent />} />
@@ -119,6 +123,9 @@ export default function App() {
     content = <div className="screen pad-top center"><p className="muted" style={{ marginTop: '40vh' }}>Loading…</p></div>
   } else if (path.startsWith('/track/')) {
     content = <Routes><Route path="/track/:token" element={<TrackEvent />} /></Routes>
+  } else if (path === '/onboard') {
+    // Public owner-onboarding wizard — no login, no app chrome, any session state.
+    content = <Routes><Route path="/onboard" element={<Onboard />} /></Routes>
   } else if (!session) {
     content = (
       <Routes>
@@ -176,5 +183,5 @@ export default function App() {
     )
   }
 
-  return (<>{!onLanding && !onElle && <AwningBar />}<Suspense fallback={<Loading />}>{content}</Suspense></>)
+  return (<>{!onLanding && !onElle && !onOnboard && <AwningBar />}<Suspense fallback={<Loading />}>{content}</Suspense></>)
 }

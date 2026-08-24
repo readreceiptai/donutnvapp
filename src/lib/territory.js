@@ -10,7 +10,7 @@ import { DEMO } from './demo'
 
 const RESERVED = new Set([
   '', 'signup', 'login', 'rewards', 'account', 'admin', 'app', 'find', 'index.html',
-  'book', 'schedule', 'owner', 'track', 'preview', 'elle', 'franchise',
+  'book', 'schedule', 'owner', 'track', 'preview', 'elle', 'franchise', 'onboard',
 ])
 
 // Default territory when someone hits the bare domain with no segment.
