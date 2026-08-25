@@ -4,11 +4,15 @@
 -- ============================================================================
 
 -- Public booking: one server call inserts + routes the lead, returns id + token.
--- route_booking is then revoked from public callers (it runs inside here as definer).
+-- route_booking is revoked from public callers (it runs inside here as definer).
+-- #122/M1: submit_booking is service_role-only -- booking creation goes through the
+-- submit-booking edge function, which verifies the caller's JWT + Turnstile token and
+-- passes the verified creator id as p_created_by (service_role has no auth.uid()).
 create or replace function public.submit_booking(
   p_tenant uuid, p_contact_name text, p_contact_phone text, p_contact_email text,
   p_event_date date, p_start_time text, p_guests int, p_zip text, p_notes text,
-  p_sms_consent boolean, p_marketing_consent boolean, p_consent_text_version text
+  p_sms_consent boolean, p_marketing_consent boolean, p_consent_text_version text,
+  p_created_by uuid default null
 ) returns table (id uuid, tracking_token text)
 language plpgsql security definer set search_path = public
 as $$
@@ -22,7 +26,7 @@ begin
     event_date, start_time, guests, zip, notes,
     sms_consent, marketing_consent, consent_text_version
   ) values (
-    p_tenant, auth.uid(), p_contact_name, p_contact_phone, p_contact_email,
+    p_tenant, coalesce(p_created_by, auth.uid()), p_contact_name, p_contact_phone, p_contact_email,
     p_event_date, p_start_time, p_guests, p_zip, p_notes,
     coalesce(p_sms_consent,false), coalesce(p_marketing_consent,false), p_consent_text_version
   ) returning bookings.id, bookings.tracking_token into v_id, v_token;
@@ -30,7 +34,8 @@ begin
   return query select v_id, v_token;
 end;
 $$;
-grant execute on function public.submit_booking(uuid,text,text,text,date,text,int,text,text,boolean,boolean,text) to anon, authenticated;
+revoke execute on function public.submit_booking(uuid,text,text,text,date,text,int,text,text,boolean,boolean,text,uuid) from public, anon, authenticated;
+grant execute on function public.submit_booking(uuid,text,text,text,date,text,int,text,text,boolean,boolean,text,uuid) to service_role;
 revoke execute on function public.route_booking(uuid) from anon, authenticated;
 
 -- Signup: profile + consents + home area atomically (consent paper trail can't be lost).

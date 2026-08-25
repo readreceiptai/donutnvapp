@@ -6,7 +6,7 @@ import BrandLogo from '../components/BrandLogo'
 import { BOOKING_CONSENT, CONSENT_VERSION } from '../lib/consentText'
 import { normalizePhone } from './Login'
 import { isLikelyBot, honeypotStyle } from '../lib/antibot'
-import TurnstileWidget, { TURNSTILE_ENABLED, passesTurnstile } from '../components/Turnstile'
+import TurnstileWidget, { TURNSTILE_ENABLED } from '../components/Turnstile'
 import { DEMO } from '../lib/demo'
 import InlineError from '../components/InlineError'
 
@@ -55,25 +55,29 @@ export default function BookTruck({ onBack }) {
     if (TURNSTILE_ENABLED && !tsToken) { setErr('Please complete the quick "I\'m human" check below.'); return }
     submitting.current = true
     setBusy(true)
-    if (!(await passesTurnstile(tsToken))) { setBusy(false); submitting.current = false; setErr('Verification failed — please try the human check again.'); return }
-    // One secure server call: inserts the booking AND routes it to the right
-    // app-active franchisee by event ZIP, returning the id + tracking token.
-    const { data, error } = await supabase.rpc('submit_booking', {
-      p_tenant: tenant?.id,
-      p_contact_name: `${f.firstName} ${f.lastName}`.trim(),
-      p_contact_phone: f.phone ? normalizePhone(f.phone) : null,
-      p_contact_email: f.email.trim(),
-      p_event_date: f.eventDate || null,
-      p_start_time: f.startTime || null,
-      p_guests: f.attendance ? parseInt(f.attendance, 10) || null : null,
-      p_zip: f.zip.trim(),
-      p_notes: f.details,
-      p_sms_consent: !!f.customerCareSms,
-      p_marketing_consent: !!f.optionalMarketing,
-      p_consent_text_version: CONSENT_VERSION,
+    // Booking creation is server-only now (#122 / M1): the submit-booking edge function
+    // verifies our session + the Turnstile token, then inserts the booking AND routes it
+    // to the right app-active franchisee by event ZIP, as service_role. submit_booking is
+    // no longer callable with the anon key, so a bot can't POST bookings past the check.
+    const { data, error } = await supabase.functions.invoke('submit-booking', {
+      body: {
+        turnstileToken: tsToken,
+        p_tenant: tenant?.id,
+        p_contact_name: `${f.firstName} ${f.lastName}`.trim(),
+        p_contact_phone: f.phone ? normalizePhone(f.phone) : null,
+        p_contact_email: f.email.trim(),
+        p_event_date: f.eventDate || null,
+        p_start_time: f.startTime || null,
+        p_guests: f.attendance ? parseInt(f.attendance, 10) || null : null,
+        p_zip: f.zip.trim(),
+        p_notes: f.details,
+        p_sms_consent: !!f.customerCareSms,
+        p_marketing_consent: !!f.optionalMarketing,
+        p_consent_text_version: CONSENT_VERSION,
+      },
     })
-    if (error) { setBusy(false); submitting.current = false; setSubmitFailed(true); return }
-    const row = Array.isArray(data) ? data[0] : data
+    if (error || data?.error) { setBusy(false); submitting.current = false; setSubmitFailed(true); return }
+    const row = data
     // Push to GHL (speed-to-lead). The tracking token authorizes this one call.
     if (row?.id && row?.tracking_token) {
       supabase.functions.invoke('ghl-sync', { body: { booking_id: row.id, token: row.tracking_token } }).catch(() => {})

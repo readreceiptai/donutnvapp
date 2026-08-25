@@ -78,8 +78,10 @@ Compare this against the Claude Code report.
 > - **M8** Google Maps key lockdown — **ALREADY DONE** (web key referrer-locked to donutnvapp.com; native key API+quota-scoped) + added `loading=async`. Deprecated `google.maps.Marker`→`AdvancedMarkerElement` migration still open (cosmetic, non-security).
 > - **Low** `wallet_passes.auth_token` client-readable — **FIXED**: revoked table SELECT + re-granted all columns except `auth_token`. Re-tested: unreadable by authenticated/anon, service_role unaffected. Migration `20260825_fix_122_wallet_passes_hide_auth_token`.
 > - **Low** Sentry-from-CDN — **ALREADY DONE** (bundled `@sentry/react`).
-> - **M1** server-side bot enforcement — **OPEN, needs a decision**: Turnstile is verified server-side (`verify-turnstile`) but decoupled from the action; `submit_booking` is anon-callable and `signInWithOtp` is direct, so a bot can skip the check. Fix = booking edge-wrapper (verify token → call RPC as service_role, revoke anon execute) + enable native CAPTCHA in Supabase Auth for OTP. Changes the public booking/auth path — awaiting go-ahead.
-> - Reliability items (**M3** tenant-load error handling, **M4** TrackEvent polling, **M5** PWA scope, **M6** unmount/alive guards) are not security — deferred to a separate pass.
+> - **M1** server-side bot enforcement (bookings) — **FIXED**: booking creation now goes through the `submit-booking` edge function, which verifies the caller's JWT + the Turnstile token server-side and calls `submit_booking` as service_role; `submit_booking` is revoked from anon/authenticated. Re-tested (rolled back): anon/authenticated EXECUTE=false; service_role path creates+routes with the verified `created_by`; live edge smoke test: anon POST → 401. Migration `20260825_fix_122_m1_submit_booking_service_role_only` + edge fn `submit-booking`.
+> - **M1** (OTP) — **SCHEDULED for #35**: `signInWithOtp` still direct; native Supabase Auth CAPTCHA to land with the SMS/10DLC launch (when OTP abuse is a real cost and the auth path is being re-tested). Not open-ended.
+> - **M6** optimistic-consent rollback — **ALREADY DONE** (Account.jsx reverts the toggle on write failure and only shows "Saved" after the write confirms).
+> - Reliability items (**M3** tenant-load error handling, **M4** TrackEvent polling, **M5** PWA scope, rest of **M6** unmount/alive guards) are not security — deferred to a separate reliability pass.
 
 ## 🟡 MEDIUM
 
