@@ -35,6 +35,24 @@ function gatePage(err = ""): Response {
   return new Response(html, { status: 401, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
 }
 
+// Branded maintenance page (mirrors public/maintenance.html; inlined so it works
+// with no dependency on a self-fetch). Served when MAINTENANCE_MODE is on.
+function maintenancePage(): Response {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<title>DonutNV — Scheduled tune-up</title>
+<style>:root{--dnv-red:#DD1B22;--dnv-cream:#FFF4EC;--dnv-ink:#231F20}*{box-sizing:border-box}html,body{margin:0;height:100%}body{background:var(--dnv-cream);font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--dnv-ink);display:flex;align-items:center;justify-content:center;padding:24px;min-height:100vh}.card{background:#fff;width:100%;max-width:460px;border-radius:20px;box-shadow:0 12px 40px rgba(0,0,0,.10);padding:40px 34px 30px;text-align:center}.logo{width:190px;max-width:70%;height:auto;margin:0 auto 18px;display:block}.donut{width:150px;height:auto;margin:6px auto 18px;display:block;animation:spin 4s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}h1{font-size:24px;margin:0 0 10px}p{font-size:16px;line-height:1.55;color:#5b5654;margin:0 0 14px}.foot{margin-top:26px;padding-top:16px;border-top:1px solid #f1ece9;font-size:12px;color:#a8a2a0}@media (prefers-reduced-motion:reduce){.donut{animation:none}}</style>
+</head><body><main class="card" role="status" aria-live="polite">
+<img class="logo" src="/brand/logo-black.png" alt="DonutNV">
+<img class="donut" src="/mini_donut.png" alt="" aria-hidden="true">
+<h1>We're giving things a fresh coat of glaze</h1>
+<p>DonutNV is down for a quick scheduled tune-up so we can make it even sweeter. Nothing's broken. We planned this one.</p>
+<p style="font-size:14px;color:#8a8482;margin-bottom:4px;">Check back soon and everything will be right where you left it.</p>
+<div class="foot">DonutNV &bull; Make Your Next Party Sweet!&reg;</div>
+</main></body></html>`;
+  return new Response(html, { status: 503, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "retry-after": "3600" } });
+}
+
 export default async (req: Request, context: Context) => {
   // The demo site (mv-preview) is a curated, territory-locked build for showing partners — leave it
   // open so there's no password friction. The real production domain stays gated below.
@@ -44,8 +62,18 @@ export default async (req: Request, context: Context) => {
   // fetch these brand images anonymously and can't carry the preview cookie. These
   // are just logos, so serve them without the gate (the app itself stays locked).
   const p = new URL(req.url).pathname;
-  if (p === "/logo-round.png" || p === "/icon-192.png" || p === "/icon-512.png" || p.startsWith("/brand/")) {
+  if (p === "/logo-round.png" || p === "/icon-192.png" || p === "/icon-512.png" || p.startsWith("/brand/")
+      || p === "/mini_donut.png" || p === "/outage.html" || p === "/maintenance.html") {
     return context.next();
+  }
+
+  // MAINTENANCE MODE: when the MAINTENANCE_MODE env var is set (on/true/1), serve
+  // the branded maintenance page to everyone (except the assets allowed above, so
+  // it can render). Overrides the password gate and the onboarding form. Toggle by
+  // setting/removing the Netlify env var and redeploying the edge function.
+  const mm = (Netlify.env.get("MAINTENANCE_MODE") ?? "").toLowerCase();
+  if (mm === "on" || mm === "true" || mm === "1") {
+    return maintenancePage();
   }
 
   // Public onboarding form. /onboard is a STANDALONE page (onboard.html) that

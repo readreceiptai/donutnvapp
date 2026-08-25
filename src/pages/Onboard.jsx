@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { supabase, isConfigured } from '../lib/supabase'
 import TurnstileWidget, { TURNSTILE_ENABLED, passesTurnstile } from '../components/Turnstile'
 import BrandLogo from '../components/BrandLogo'
+import InlineError from '../components/InlineError'
 
 // ── Owner onboarding intake ──────────────────────────────────────────────
 // Public, no login. A branded one-question-per-screen wizard that writes a
@@ -109,6 +110,7 @@ export default function Onboard() {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [tsToken, setTsToken] = useState('') // Cloudflare Turnstile token (public form spam guard)
+  const [submitFailed, setSubmitFailed] = useState(false) // show the inline retry card on a failed write
   const submitting = useRef(false)
 
   // Steps visible for the current answers (conditionals resolved). The progress
@@ -161,6 +163,7 @@ export default function Onboard() {
     if (!isConfigured) { setErr('Not connected yet — please try again in a moment.'); return }
     submitting.current = true
     setBusy(true)
+    setErr(''); setSubmitFailed(false)
     // Server-side verify the Turnstile token (no-op until Turnstile is configured).
     if (!(await passesTurnstile(tsToken))) {
       setBusy(false); submitting.current = false
@@ -180,7 +183,8 @@ export default function Onboard() {
     const { error } = await supabase.from('onboarding_intake').insert(row)
     setBusy(false)
     submitting.current = false
-    if (error) { setErr('Something went wrong saving your answers. Please try again.'); return }
+    // Failed write: keep every answer in state and show the inline retry card.
+    if (error) { setSubmitFailed(true); return }
     setStage('success')
   }
 
@@ -331,6 +335,7 @@ export default function Onboard() {
         )}
 
         {clampedIdx === total - 1 && <TurnstileWidget onToken={setTsToken} />}
+        {submitFailed && <InlineError onRetry={submit} busy={busy} />}
         {err && <div className="error">{err}</div>}
 
         <div style={S.nav}>

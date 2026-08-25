@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>DonutNV - We'll be right back</title>
+<style>
+  :root { --dnv-red:#DD1B22; --dnv-cream:#FFF4EC; --dnv-ink:#231F20; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body {
+    background:var(--dnv-cream);
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--dnv-ink);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px; min-height:100vh;
+  }
+  .card {
+    background:#fff; width:100%; max-width:460px; border-radius:20px;
+    box-shadow:0 12px 40px rgba(0,0,0,.10); padding:40px 34px 30px; text-align:center;
+  }
+  .logo { width:190px; max-width:70%; height:auto; margin:0 auto 18px; display:block; }
+  .donut { width:150px; height:auto; margin:6px auto 18px; display:block; animation:spin 4s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  h1 { font-size:24px; margin:0 0 10px; }
+  p { font-size:16px; line-height:1.55; color:#5b5654; margin:0 0 14px; }
+  .btn {
+    display:inline-block; margin-top:8px; background:var(--dnv-red); color:#fff;
+    text-decoration:none; font-weight:700; font-size:15px; padding:13px 26px; border:0;
+    border-radius:12px; cursor:pointer;
+  }
+  .foot { margin-top:26px; padding-top:16px; border-top:1px solid #f1ece9; font-size:12px; color:#a8a2a0; }
+  @media (prefers-reduced-motion: reduce) { .donut { animation:none; } }
+</style>
+</head>
+<body>
+  <main class="card" role="alert" aria-live="polite">
+    <img class="logo" src="/brand/logo-black.png" alt="DonutNV" />
+    <img class="donut" src="/mini_donut.png" alt="" aria-hidden="true" />
+    <h1>Our fryer's taking a quick break</h1>
+    <p>Something on our end got a little sticky, and we're glazing it back together right now. No need to do anything. We'll have the shop open again shortly.</p>
+    <p style="font-size:14px;color:#8a8482;margin-bottom:4px;">Thanks for your patience. Sweet things are worth the wait.</p>
+    <button class="btn" onclick="location.reload()">Try again</button>
+    <div class="foot">DonutNV &bull; Make Your Next Party Sweet!&reg;</div>
+  </main>
+</body>
+</html>

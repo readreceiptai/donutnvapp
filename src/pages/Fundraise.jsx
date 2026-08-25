@@ -8,6 +8,7 @@ import { normalizePhone } from './Login'
 import { isLikelyBot, honeypotStyle } from '../lib/antibot'
 import TurnstileWidget, { TURNSTILE_ENABLED, passesTurnstile } from '../components/Turnstile'
 import { DEMO } from '../lib/demo'
+import InlineError from '../components/InlineError'
 
 // Pre-filled demo values so the presenter can just tap submit on camera.
 const DEMO_FUND = {
@@ -46,6 +47,7 @@ export default function Fundraise({ onBack }) {
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
   const [err, setErr] = useState('')
+  const [submitFailed, setSubmitFailed] = useState(false)
   const [tsToken, setTsToken] = useState('')
   const set = (k) => (e) => {
     const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value
@@ -54,7 +56,7 @@ export default function Fundraise({ onBack }) {
 
   async function submit(e) {
     e.preventDefault()
-    setErr('')
+    setErr(''); setSubmitFailed(false)
     if (submitting.current) return // guard against a fast double-tap (busy re-render lags)
     if (isLikelyBot({ honeypot: f.company, startedAt: startedAt.current })) return
     if (!isConfigured) { setErr('Not connected to Supabase yet — add your keys in .env.'); return }
@@ -81,7 +83,7 @@ export default function Fundraise({ onBack }) {
       p_marketing_consent: !!f.optionalMarketing,
       p_consent_text_version: CONSENT_VERSION,
     })
-    if (error) { setBusy(false); submitting.current = false; setErr(error.message); return }
+    if (error) { setBusy(false); submitting.current = false; setSubmitFailed(true); return }
     const row = Array.isArray(data) ? data[0] : data
     if (row?.id && row?.tracking_token) {
       supabase.functions.invoke('ghl-sync', { body: { booking_id: row.id, token: row.tracking_token } }).catch(() => {})
@@ -177,6 +179,7 @@ export default function Fundraise({ onBack }) {
         </p>
 
         <TurnstileWidget onToken={setTsToken} />
+        {submitFailed && <InlineError onRetry={submit} busy={busy} />}
         {err && <div className="error">{err}</div>}
         <button className="btn btn-primary" disabled={busy}>{busy ? 'Sending…' : 'Start our fundraiser'}</button>
       </form>
