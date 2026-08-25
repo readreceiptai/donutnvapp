@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DonutNV - Inline error message (component)</title>
+<!--
+  DROP-IN COMPONENT for CC: show this inline when a single action (form submit,
+  booking, etc.) fails but the app is otherwise up. It keeps the user's entry and
+  invites a retry instead of dropping the submission. Copy the .dnv-retry block
+  and wire the button to re-run the failed action. Keep the user's form data.
+-->
+<style>
+  body { background:#FFF4EC; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; padding:40px 20px; }
+  .dnv-retry {
+    max-width:440px; margin:0 auto; background:#fff; border:1px solid #f3d9c9;
+    border-left:5px solid #DD1B22; border-radius:12px; padding:16px 18px;
+    display:flex; gap:14px; align-items:flex-start;
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .dnv-retry .icon {
+    flex:0 0 auto; width:48px; height:48px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .dnv-retry h3 { margin:0 0 4px; font-size:15px; color:#231F20; }
+  .dnv-retry p { margin:0 0 10px; font-size:14px; line-height:1.5; color:#5b5654; }
+  .dnv-retry button {
+    background:#DD1B22; color:#fff; border:0; border-radius:9px; font-weight:700;
+    font-size:14px; padding:9px 18px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="dnv-retry" role="alert">
+    <div class="icon" aria-hidden="true">
+      <img src="https://donutnvapp.com/mini_donut.png" alt="" style="width:46px;height:auto;display:block;" />
+    </div>
+    <div>
+      <h3>That one didn't go through</h3>
+      <p>Our donut machine hiccuped, but your info's still here and nothing was lost. Give it another try in a sec.</p>
+      <button type="button" onclick="/* CC: re-run the failed action here */">Try again</button>
+    </div>
+  </div>
+</body>
+</html>
