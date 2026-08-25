@@ -1,8 +1,35 @@
 // Loads the Google Maps JS SDK once and caches the promise.
+//
+// Two keys, chosen at runtime:
+//   web    VITE_GOOGLE_MAPS_API_KEY     referrer-locked to donutnvapp.com (unchanged)
+//   native VITE_GOOGLE_MAPS_NATIVE_KEY  Maps-JS-API-only, no referrer restriction
+// The native WebView's origin is capacitor://localhost (iOS) / https://localhost
+// (Android), which the web key's referrer allowlist rejects with
+// RefererNotAllowedMapError (ROADMAP #70). Referrer restrictions cannot
+// meaningfully secure a JS key inside a WebView, so the native key is scoped
+// by API + quota instead, and the web key stays tightly locked.
 let promise = null
+
+function isNativeShell() {
+  // Synchronous and dependency-free on purpose: the loader is called from
+  // render paths, and this must not fail on a web-only checkout without
+  // @capacitor/core. Capacitor exposes itself on window when native.
+  const cap = typeof window !== 'undefined' ? window.Capacitor : null
+  if (cap && typeof cap.isNativePlatform === 'function') return cap.isNativePlatform()
+  // Fallback for the moment before the bridge is attached: origin scheme.
+  const p = typeof window !== 'undefined' ? window.location?.protocol : ''
+  const h = typeof window !== 'undefined' ? window.location?.hostname : ''
+  return p === 'capacitor:' || (p === 'https:' && h === 'localhost')
+}
+
 export function loadGoogleMaps() {
   if (promise) return promise
-  const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+  const nativeKey = import.meta.env.VITE_GOOGLE_MAPS_NATIVE_KEY
+  const webKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+  // Native shell uses the native key; falls back to the web key only if the
+  // native key is unset (which will then surface RefererNotAllowedMapError,
+  // i.e. fail loudly rather than silently).
+  const key = (isNativeShell() && nativeKey && !nativeKey.startsWith('your-')) ? nativeKey : webKey
   promise = new Promise((resolve, reject) => {
     if (window.google?.maps) return resolve(window.google.maps)
     if (!key || key.startsWith('your-')) return reject(new Error('no-key'))

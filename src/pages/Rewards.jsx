@@ -1,122 +1,197 @@
 import { useEffect, useState } from 'react'
+import QRCode from 'qrcode'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import MiniDonut from '../components/MiniDonut'
 import AddToWallet from '../components/AddToWallet'
 
-// Earn & Play. The transactional points live in Square Loyalty (tied to the
-// register). This screen shows the *gamified* layer the app owns:
-//   • Stamp card  — visit N times, earn a treat (counts every check-in)
-//   • Donut Passport — catch us at N different spots, unlock a bigger reward
-// Whatever the operator switches on in the admin renders here automatically.
+// In-app Rewards card — "1C · hero donut, minimal". Two stacked white cards on a
+// cream page: the loyalty card (live points/tier/member) + the back-of-pass detail.
+const C = { red: '#DD1B22', redDeep: '#8B1116', blue: '#023462', sky: '#1772AC', ink: '#141210', label: '#9a938c', cream: '#F4F1EC' }
+
+// Decorative sprinkles (brand colors), positioned as % of the card.
+// Positioned only in whitespace — the left-middle band (balance number, tier)
+// and the member/note rows are kept clear of sprinkles.
+const SPRINKLES_TOP = [
+  { t: '15%', l: '40%', r: -18, c: C.sky }, { t: '11%', l: '86%', r: 24, c: C.red },
+  { t: '18%', l: '10%', r: 12, c: C.sky }, { t: '22%', l: '66%', r: 40, c: '#F5C518' },
+  { t: '73%', l: '14%', r: -28, c: '#ED93B1' }, { t: '24%', l: '24%', r: 18, c: '#F5C518' },
+  { t: '74%', l: '32%', r: 32, c: '#F0997B' },
+  { t: '16%', l: '54%', r: 20, c: C.sky }, { t: '52%', l: '58%', r: -24, c: '#F5C518' },
+  { t: '72%', l: '50%', r: 36, c: C.red }, { t: '49%', l: '64%', r: 8, c: '#ED93B1' },
+  { t: '64%', l: '72%', r: -18, c: '#F5C518' }, { t: '70%', l: '86%', r: 28, c: C.sky },
+  { t: '76%', l: '76%', r: -32, c: '#F0997B' }, { t: '67%', l: '92%', r: 14, c: C.red },
+  { t: '40%', l: '82%', r: 22, c: '#F5C518' }, { t: '61%', l: '82%', r: -12, c: '#ED93B1' },
+]
+const SPRINKLES_BACK = [
+  { t: '12%', l: '46%', r: -20, c: '#ED93B1' }, { t: '8%', l: '58%', r: 24, c: C.sky },
+  { t: '26%', l: '42%', r: 40, c: '#F5C518' }, { t: '30%', l: '40%', r: -14, c: C.red },
+  { t: '20%', l: '50%', r: 12, c: '#F0997B' },
+]
+
+function Sprinkle({ s }) {
+  return <span aria-hidden="true" style={{ position: 'absolute', top: s.t, left: s.l, width: 15, height: 5, borderRadius: 3, background: s.c, transform: `rotate(${s.r}deg)`, opacity: 0.9, pointerEvents: 'none' }} />
+}
+
 export default function Rewards() {
-  const { profile } = useAuth()
-  const [stamp, setStamp] = useState(null)
-  const [stampCount, setStampCount] = useState(0)
-  const [passport, setPassport] = useState(null)
-  const [passportStops, setPassportStops] = useState(0)
+  const { profile, tenant } = useAuth()
+  const [r, setR] = useState(null)
+  const [qr, setQr] = useState('')          // data-URL of the referral QR
+  const [shareNote, setShareNote] = useState('')
 
   useEffect(() => {
-    if (!profile?.tenant_id) return
-    // Explicit tenant scope (defense-in-depth on top of RLS) so a customer only ever
-    // sees their own franchisee's rewards.
-    supabase.from('campaigns').select('*')
-      .eq('is_active', true).eq('tenant_id', profile.tenant_id).in('kind', ['checkin_stamp', 'passport'])
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        const list = data || []
-        setStamp(list.find((c) => c.kind === 'checkin_stamp') || null)
-        setPassport(list.find((c) => c.kind === 'passport') || null)
-      })
+    if (!profile?.id) return
+    supabase.rpc('get_member_rewards', { p_profile: profile.id })
+      .then(({ data }) => setR(Array.isArray(data) ? data[0] : data))
   }, [profile])
 
+  // Referral link + QR. Same URL the wallet pass encodes, so the in-app QR and
+  // the pass QR always agree. Generated locally (no network) as a data URL.
+  const referralCode = profile?.referral_code || ''
+  const referralUrl = referralCode ? `https://donutnvapp.com/r/${referralCode}` : ''
   useEffect(() => {
-    if (!profile || !stamp) return
-    supabase.from('check_ins').select('id', { count: 'exact', head: true })
-      .eq('profile_id', profile.id).eq('campaign_id', stamp.id)
-      .then(({ count }) => setStampCount(count || 0))
-  }, [profile, stamp])
+    if (!referralUrl) { setQr(''); return }
+    QRCode.toDataURL(referralUrl, { width: 220, margin: 1, color: { dark: C.ink, light: '#ffffff' } })
+      .then(setQr).catch(() => setQr(''))
+  }, [referralUrl])
 
-  useEffect(() => {
-    if (!profile || !passport) return
-    supabase.from('check_ins').select('created_at,lat,lng')
-      .eq('profile_id', profile.id).eq('campaign_id', passport.id)
-      .then(({ data }) => {
-        // "Different stops": dedupe by location when we have it, else by day.
-        const keys = new Set((data || []).map((r) =>
-          (r.lat != null && r.lng != null) ? `${r.lat.toFixed(2)},${r.lng.toFixed(2)}` : new Date(r.created_at).toDateString()))
-        setPassportStops(keys.size)
-      })
-  }, [profile, passport])
+  async function share() {
+    if (!referralUrl) return
+    const text = `Join me on DonutNV and we both get rewarded. Use my code ${referralCode}: ${referralUrl}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'DonutNV', text, url: referralUrl })
+        return
+      }
+      await navigator.clipboard.writeText(referralUrl)
+      setShareNote('Link copied'); setTimeout(() => setShareNote(''), 1800)
+    } catch { /* user cancelled the share sheet; nothing to do */ }
+  }
+
+  const balance = r?.points_balance ?? 0
+  const tier = r?.tier ?? 'Glazed'
+  const freeDozen = r?.free_dozen_pts ?? 2000
+  const memberSince = profile?.created_at ? new Date(profile.created_at).getFullYear() : new Date().getFullYear()
+  const name = displayName(profile)
+  const memberNo = memberNumber(profile?.id)
+  const homeTruck = tenant?.name || 'DonutNV'
+
+  const card = { position: 'relative', background: '#fff', borderRadius: 22, overflow: 'hidden', boxShadow: '0 10px 30px rgba(20,18,16,0.10)' }
 
   return (
-    <div className="pad-top stack">
-      <h1>Rewards</h1>
+    <div className="pad-top" style={{ paddingBottom: 24 }}>
+      {/* ── Loyalty card ── */}
+      <div style={card}>
+        <div style={{ display: 'flex', height: 12 }}>
+          <div style={{ flex: 1, background: C.red }} /><div style={{ flex: 1, background: C.redDeep }} />
+          <div style={{ flex: 1, background: C.blue }} /><div style={{ flex: 1, background: C.sky }} />
+        </div>
 
-      {!stamp && !passport && (
-        <div className="card center">
-          <div style={{ display: 'flex', justifyContent: 'center' }}><MiniDonut size={48} /></div>
-          <p className="muted" style={{ margin: '8px 0 0' }}>No game running right now — check back soon for a fresh one!</p>
+        <div style={{ position: 'relative', padding: '20px 22px 22px' }}>
+          {SPRINKLES_TOP.map((s, i) => <Sprinkle key={i} s={s} />)}
+
+          <div style={{ position: 'relative', zIndex: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <img src="/brand/logo-black.png" alt="DonutNV" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+            <span style={{ color: C.blue, fontWeight: 800, letterSpacing: 2.5, fontSize: 15 }}>REWARDS</span>
+          </div>
+
+          <div style={{ position: 'relative', minHeight: 250, marginTop: 16 }}>
+            <img src="/hero_cup.png" alt="" aria-hidden="true"
+              style={{ position: 'absolute', right: -20, top: -6, width: 236, height: 'auto', objectFit: 'contain', zIndex: 1 }} />
+            <div style={{ position: 'relative', zIndex: 2, maxWidth: '50%' }}>
+              <div style={{ color: C.label, letterSpacing: 2.5, fontSize: 13, fontWeight: 700 }}>BALANCE</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+                <span style={{ fontSize: 66, fontWeight: 800, color: C.ink, lineHeight: 1, letterSpacing: -1.5 }}>{balance.toLocaleString()}</span>
+                <span style={{ fontSize: 21, fontWeight: 800, color: C.red }}>pts</span>
+              </div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: C.cream, borderRadius: 24, padding: '10px 18px', marginTop: 18 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 10, background: C.red }} />
+                <span style={{ fontWeight: 800, letterSpacing: 1, color: C.ink, fontSize: 15 }}>{tier.toUpperCase()} TIER</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid #ece7e0', margin: '2px 0 14px' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div>
+              <div style={{ color: C.label, letterSpacing: 2, fontSize: 12, fontWeight: 700 }}>MEMBER SINCE {memberSince}</div>
+              <div style={{ fontSize: 23, fontWeight: 800, color: C.ink, marginTop: 4 }}>{name}</div>
+            </div>
+            <div style={{ fontFamily: 'ui-monospace, Menlo, monospace', letterSpacing: 2, color: '#8a837b', fontSize: 15 }}>{memberNo}</div>
+          </div>
+          <p style={{ color: C.label, fontSize: 14, margin: '10px 0 0', lineHeight: 1.5 }}>
+            Enter your phone number at the register with every purchase to earn points.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Back of pass ── */}
+      <div style={{ ...card, marginTop: 16 }}>
+        <div style={{ position: 'relative', padding: '20px 22px' }}>
+          {SPRINKLES_BACK.map((s, i) => <Sprinkle key={i} s={s} />)}
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            <Row label="Free dozen at" value={`${freeDozen.toLocaleString()} pts`} first />
+            <Row label="Birthday treat" value="Free dozen donuts" />
+            <Row label="Home truck" value={homeTruck} />
+            <div style={{ background: C.cream, borderRadius: 16, padding: '14px 16px', marginTop: 16, color: '#5b544d', fontSize: 14, lineHeight: 1.5 }}>
+              Please enter your telephone number at the register with every purchase. Points are only credited when your number is entered at checkout.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Invite friends (referral) ── */}
+      {referralCode && (
+        <div style={{ ...card, marginTop: 16 }}>
+          <div style={{ position: 'relative', padding: '20px 22px' }}>
+            <div style={{ color: C.blue, fontWeight: 800, letterSpacing: 2.5, fontSize: 15 }}>INVITE FRIENDS</div>
+            <p style={{ color: '#5b544d', fontSize: 15, margin: '8px 0 14px', lineHeight: 1.45 }}>
+              Share your code and earn rewards when friends join.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              {qr
+                ? <img src={qr} alt={`Your DonutNV referral QR code, ${referralCode}`} width={110} height={110}
+                       style={{ borderRadius: 12, border: '1px solid #ece7e0', flexShrink: 0 }} />
+                : <div style={{ width: 110, height: 110, borderRadius: 12, background: C.cream }} />}
+              <div style={{ flex: 1, minWidth: 150 }}>
+                <div style={{ color: C.label, letterSpacing: 2, fontSize: 12, fontWeight: 700 }}>YOUR CODE</div>
+                <div style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 26, fontWeight: 800, letterSpacing: 3, color: C.ink, marginTop: 4 }}>
+                  {referralCode}
+                </div>
+                <button className="btn btn-primary" onClick={share} style={{ marginTop: 12, width: 'auto', padding: '10px 18px' }}>
+                  Share
+                </button>
+                {shareNote && <span className="muted" style={{ marginLeft: 10, fontSize: '.85rem' }}>{shareNote}</span>}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {stamp && <StampCard campaign={stamp} count={stampCount} />}
-      {passport && <Passport campaign={passport} stops={passportStops} />}
-
-      <AddToWallet />
-
-      <div className="card">
-        <h2 style={{ marginBottom: 6 }}>How points work</h2>
-        <p className="muted" style={{ margin: 0 }}>
-          Every purchase at the truck earns loyalty points on your phone number at the register.
-          Stamp cards and the Donut Passport are extra ways to win free donuts.
-        </p>
-      </div>
+      <div style={{ marginTop: 16 }}><AddToWallet /></div>
     </div>
   )
 }
 
-function StampCard({ campaign, count }) {
-  const goal = campaign?.config?.goal || 5
-  const reward = campaign?.config?.reward || 'A free treat'
-  const filled = Math.min(count, goal)
-  const done = filled >= goal
+function Row({ label, value, first }) {
   return (
-    <div className="card card-accent">
-      <h2 style={{ marginBottom: 2 }}>{campaign.name}</h2>
-      <p className="muted" style={{ marginTop: 0 }}>{done ? 'You earned it! 🎉' : `${goal - filled} more to go for: ${reward}`}</p>
-      <div className="stamps" style={{ marginTop: 10 }}>
-        {Array.from({ length: goal }, (_, i) => (
-          <div key={i} className={`stamp ${i < filled ? 'filled' : ''}`}>{i < filled ? <MiniDonut size={22} /> : ''}</div>
-        ))}
-      </div>
-      {done && <div className="success" style={{ marginTop: 14 }}>Show this screen at the truck to redeem: <b>{reward}</b></div>}
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderTop: first ? 'none' : '1px solid #f2eee8' }}>
+      <span style={{ color: '#7c756e', fontSize: 15 }}>{label}</span>
+      <span style={{ fontWeight: 800, color: C.ink, fontSize: 15 }}>{value}</span>
     </div>
   )
 }
 
-function Passport({ campaign, stops }) {
-  const goal = campaign?.config?.goal || 4
-  const reward = campaign?.config?.reward || 'A special reward'
-  const filled = Math.min(stops, goal)
-  const done = filled >= goal
-  return (
-    <div className="card" style={{ borderTop: '4px solid var(--blue)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 22 }}>🗺️</span>
-        <h2 style={{ margin: 0 }}>{campaign.name || 'Donut Passport'}</h2>
-      </div>
-      <p className="muted" style={{ marginTop: 4 }}>
-        {done ? 'Passport complete! 🎉' : `Catch us at ${goal - filled} more ${goal - filled === 1 ? 'spot' : 'spots'} to unlock: ${reward}`}
-      </p>
-      <div className="passport-grid">
-        {Array.from({ length: goal }, (_, i) => (
-          <div key={i} className={`passport-stop ${i < filled ? 'stamped' : ''}`}>
-            {i < filled ? <MiniDonut size={30} /> : <span className="passport-num">{i + 1}</span>}
-          </div>
-        ))}
-      </div>
-      {done && <div className="success" style={{ marginTop: 14 }}>Show this screen at the truck to redeem: <b>{reward}</b></div>}
-    </div>
-  )
+function displayName(p) {
+  if (!p) return 'Member'
+  const f = p.first_name || 'Member'
+  return p.last_name ? `${f} ${p.last_name[0]}.` : f
+}
+
+function memberNumber(id) {
+  if (!id) return 'DNV 0000 0000'
+  const hex = id.replace(/[^0-9a-f]/gi, '').slice(0, 10)
+  let n = 0
+  for (const c of hex) n = (n * 31 + parseInt(c, 16)) >>> 0
+  const s = String(n).padStart(8, '0').slice(0, 8)
+  return `DNV ${s.slice(0, 4)} ${s.slice(4, 8)}`
 }

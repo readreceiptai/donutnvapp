@@ -20,9 +20,13 @@
   --font-body: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-fun:  'Gochi Hand', cursive;
 
-  --radius: 16px;
-  --shadow: 0 6px 20px rgba(35,31,32,.10);
-  --shadow-lg: 0 12px 34px rgba(35,31,32,.16);
+  --radius: 18px;
+  --radius-sm: 12px;
+  --shadow: 0 1px 2px rgba(35,31,32,.05), 0 8px 24px rgba(35,31,32,.08);
+  --shadow-lg: 0 2px 6px rgba(35,31,32,.07), 0 16px 40px rgba(35,31,32,.14);
+  --shadow-red:  0 6px 16px rgba(221,27,34,.26);
+  --shadow-blue: 0 6px 16px rgba(10,123,193,.26);
+  --ring: 0 0 0 3px rgba(10,123,193,.22);
   --tap: 52px;           /* min touch target — friendly for non-tech-savvy users */
 }
 
@@ -37,9 +41,11 @@ body {
   background: var(--cream);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
 }
 
-h1, h2, h3 { font-family: var(--font-head); font-weight: 700; line-height: 1.15; margin: 0 0 .4em; }
+h1, h2, h3 { font-family: var(--font-head); font-weight: 700; line-height: 1.15; letter-spacing: -.012em; margin: 0 0 .4em; }
 h1 { font-size: 1.7rem; }
 h2 { font-size: 1.3rem; }
 p  { line-height: 1.5; }
@@ -62,21 +68,26 @@ p  { line-height: 1.5; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; min-height: var(--tap);
-  font-family: var(--font-head); font-weight: 700; font-size: 1.05rem;
+  font-family: var(--font-head); font-weight: 700; font-size: 1.05rem; letter-spacing: .01em;
   border: none; border-radius: var(--radius); cursor: pointer;
-  padding: 14px 18px; text-decoration: none; transition: transform .05s ease, filter .15s ease;
+  padding: 14px 18px; text-decoration: none;
+  transition: transform .06s ease, box-shadow .2s ease, filter .2s ease, background .2s ease;
 }
-.btn:active { transform: translateY(1px); }
-.btn-primary { background: var(--red); color: #fff; box-shadow: var(--shadow); }
-.btn-primary:hover { filter: brightness(1.04); }
-.btn-blue { background: var(--blue); color: #fff; box-shadow: var(--shadow); }
-.btn-ghost { background: transparent; color: var(--navy); border: 2px solid var(--line); }
-.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn:active { transform: translateY(1px) scale(.995); }
+.btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.btn-primary { background: var(--red); color: #fff; box-shadow: var(--shadow-red); }
+.btn-primary:hover { filter: brightness(1.05); box-shadow: 0 9px 22px rgba(221,27,34,.34); }
+.btn-blue { background: var(--blue); color: #fff; box-shadow: var(--shadow-blue); }
+.btn-blue:hover { filter: brightness(1.05); box-shadow: 0 9px 22px rgba(10,123,193,.34); }
+.btn-ghost { background: #fff; color: var(--navy); border: 2px solid rgba(0,60,119,.20); }
+.btn-ghost:hover { border-color: var(--navy); background: rgba(0,60,119,.04); }
+.btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; filter: none; }
 
 /* ---- Cards ---- */
 .card {
   background: var(--paper); border-radius: var(--radius);
   box-shadow: var(--shadow); padding: 18px;
+  border: 1px solid rgba(35,31,32,.05);
 }
 .card-accent { border-top: 5px solid var(--red); }
 
@@ -88,7 +99,7 @@ p  { line-height: 1.5; }
   font-size: 1.05rem; padding: 12px 14px;
   border: 2px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink);
 }
-.field input:focus, .field select:focus { outline: none; border-color: var(--blue); }
+.field input:focus, .field select:focus { outline: none; border-color: var(--blue); box-shadow: var(--ring); }
 .field .hint { font-size: .82rem; color: var(--muted); margin-top: 4px; }
 .req { color: var(--red); }
 
@@ -109,11 +120,13 @@ p  { line-height: 1.5; }
   display: flex; justify-content: space-around;
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
   max-width: 480px; margin: 0 auto; z-index: 40;
+  box-shadow: 0 -3px 16px rgba(35,31,32,.06);
 }
 .tabbar a {
   flex: 1; text-align: center; text-decoration: none;
   color: var(--muted); font-size: .72rem; font-weight: 600; font-family: var(--font-head);
   display: flex; flex-direction: column; align-items: center; gap: 3px;
+  transition: color .15s ease;
 }
 .tabbar a .ico { font-size: 1.5rem; line-height: 1; }
 .tabbar a.active { color: var(--red); }
@@ -158,6 +171,15 @@ p  { line-height: 1.5; }
 .passport-stop.stamped { border-style: solid; border-color: var(--blue); background: rgba(10,123,193,.08); }
 .passport-num { font-family: var(--font-head); font-weight: 800; font-size: 1.2rem; color: var(--line); }
 .link { color: var(--blue); font-weight: 600; cursor: pointer; text-decoration: underline; background: none; border: none; font-size: 1rem; font-family: var(--font-body); padding: 0; }
+
+/* ---- Keyboard focus + branded spinner ---- */
+:where(a, button, [role="button"]):focus-visible { outline: none; box-shadow: var(--ring); border-radius: 10px; }
+.spinner {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 3px solid rgba(221,27,34,.18); border-top-color: var(--red);
+  animation: spin .7s linear infinite; margin: 0 auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ============================================================================
    CURTAIN INTRO — blue awning + curtains slide open to reveal the signup screen.
@@ -272,6 +294,7 @@ p  { line-height: 1.5; }
 .mk-chip { background: var(--paper); border: 1.5px solid var(--line); border-radius: 999px; padding: 9px 16px; font-weight: 600; font-family: var(--font-head); font-size: .95rem; color: var(--navy); }
 .mk-chip.more { background: var(--red); color: #fff; border-color: var(--red); }
 .mk-fb { display: inline-flex; align-items: center; gap: 9px; background: #1877F2; color: #fff; border: none; border-radius: var(--radius); padding: 13px 22px; font-weight: 700; font-family: var(--font-head); text-decoration: none; }
+.mk-ig { display: inline-flex; align-items: center; gap: 9px; background: linear-gradient(45deg, #F58529, #DD2A7B, #8134AF, #515BD4); color: #fff; border: none; border-radius: var(--radius); padding: 13px 22px; font-weight: 700; font-family: var(--font-head); text-decoration: none; }
 .mk-band.cream { background: var(--cream); color: var(--ink); }
 .mk-band.cream h2 { color: var(--ink); }
 .mk-owner-link { color: var(--muted); font-size: .72rem; opacity: .55; text-decoration: none; }

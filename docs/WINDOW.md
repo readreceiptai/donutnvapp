@@ -33,3 +33,11 @@ Home dashboard (KPIs, kill switch to stop a broadcasting truck), Go Live, Bookin
 ## Auth / email
 
 - Auth is Supabase. **Custom SMTP is not yet set up** (ROADMAP #34) — default email is rate-limited (~30 new signups/hr) and can land in spam. This is the top thing to fix before onboarding real testers who must receive confirmation/reset emails.
+
+## Maps cost controls + Rewards page (deployed to prod 2026-08-18, commit c0bcf2a)
+
+- **Landing after login is `/rewards`, not the map.** `/` redirects to `/rewards`; the Find map lives at `/find`. Bottom tab bar order is unchanged (the Find tab points at `/find`). Reason: every Find mount is a billable Google Maps load; landing there meant one per login for customers who only came to check their card.
+- **Find map is lazy.** Nothing from Google Maps is requested on mount. The page renders the truck list + "See where we'll be this week" by default and mounts the map only on the **Show map** button. "Show me the fastest way" auto-shows the map first and waits for it before drawing the route. Verified in a real browser on the exact deployed bundle: fresh `/find` = 0 Maps script tags / `google.maps` undefined / 0 requests; after tap = loaded. **The demo build (`VITE_DEMO=1`) keeps map-first**, because the demo's opening beat is the spinning pin.
+- **Rewards page:** "BACK OF PASS" heading removed (card + rows kept). New **Invite friends** block: referral QR generated locally with the `qrcode` package (data URL, no network) encoding `https://donutnvapp.com/r/<referral_code>`, the same URL the wallet pass encodes; code displayed; **Share** uses the Web Share API with a clipboard fallback; copy is generic ("Share your code and earn rewards when friends join") pending the reward value. Wallet buttons are now official-style **Add to Apple Wallet / Add to Google Wallet** badges (`src/components/WalletBadges.jsx`, inline SVG; do not recolor or restyle).
+- **Push tap-through** (`proximity-dispatch`) now targets `/find` since `/` is Rewards.
+- **Prod build rule:** the web bundle must carry only the referrer-locked web Maps key. Build for Netlify with `VITE_GOOGLE_MAPS_NATIVE_KEY` unset (it is only in the local `.env` for native builds); verify with `grep -oh "AIza[0-9A-Za-z_-]\{35\}" dist/assets/index-*.js | sort -u` before `netlify deploy`.

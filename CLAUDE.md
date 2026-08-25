@@ -2,7 +2,7 @@
 
 **This file auto-loads into any Claude session opened in this folder. Read it first, then the `docs/` files it points to. It is the single source of truth for the whole platform.**
 
-Maintained by Kevin McLenithan (Trench Logic). Last updated: 2026-08-13.
+Maintained by Kevin McLenithan (Trench Logic). Last updated: 2026-08-18.
 
 ---
 
@@ -19,7 +19,7 @@ Built for DonutNV, a mini-donut franchise. Customers = "Z" / "Zee" (franchisee o
 
 1. Read this file.
 2. Read `docs/ARCHITECTURE.md` (systems, IDs, deploy) and `docs/DATA-MODEL.md` (tables, flags, triggers).
-3. For ELLE work read `docs/ELLE.md`; for customer-app work read `docs/WINDOW.md`.
+3. For ELLE work read `docs/ELLE.md`; for customer-app work read `docs/WINDOW.md`; for the live proximity-push workstream read `docs/PROXIMITY-PUSH.md`.
 4. Before changing anything, read `docs/DECISIONS.md` (why things are the way they are) and `docs/RUNBOOKS.md` (how to operate/deploy/recover).
 5. Open items live in `docs/ROADMAP.md`.
 
@@ -32,7 +32,11 @@ Built for DonutNV, a mini-donut franchise. Customers = "Z" / "Zee" (franchisee o
 - **Git:** commits are made locally in this repo; **Kevin pushes from his Mac** (the sandbox has no push creds). Run `git gc` occasionally to clear stale lock warnings.
 - **Demo-only hacks** (Ocala geography forcing, dummy accounts) must never ship in the real production app.
 
-## Current status (2026-08-13)
+## Current status (2026-08-16)
+
+- **Option B (live proximity push)** server-side pipeline is **built, applied to the APP DB, and proven end to end** on branch `feature/proximity-push`. Six new additive tables (RLS deny-by-default, no `anon` grant), a PostGIS `ST_DWithin` matcher with the full rules layer, and two edge functions written but not deployed. **Now an active track toward closed beta**: **both native shells building green** (iOS running in the Simulator, capture->ingest proven end-to-end there; Android with FCM baked in), priming screen Play-compliant, and both edge functions **deployed dormant** (no cron + kill switch `false` + empty tenant config = three locks; probed 401/403 from outside). Merge to `main` only after a real push lands on a real phone. FCM send-path verified end to end via a validate-only probe; native Maps key live and the Find map renders in the shell (#70 closed); CRON_SECRET reset and held by Kevin. **Only remaining gate: the on-device Android push test** (`docs/DEVICE-TEST-RUNBOOK.md`), then merge. After that: Transistorsoft license, Play registration — see `docs/PROXIMITY-PUSH.md` and ROADMAP #63-69.
+
+## Status as of 2026-08-13
 
 - Production is live at **donutnvapp.com** (Netlify site `donutnv-app-live`).
 - A production-readiness audit was completed; most REDs fixed. Remaining open items are in `docs/ROADMAP.md` (backups, Sentry, elle-discover job queue, ownership policy, SMTP, Twilio/A2P).

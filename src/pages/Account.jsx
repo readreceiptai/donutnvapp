@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { CONSENT_TEXT, CONSENT_VERSION } from '../lib/consentText'
 import { enablePushAlerts } from '../lib/push'
+import ProximityAlerts from '../components/ProximityAlerts'
 
 export default function Account() {
   const { profile, signOut, reloadProfile } = useAuth()
@@ -75,6 +76,10 @@ export default function Account() {
       </div>
 
       <button className="btn btn-blue" onClick={turnOnAlerts} style={{ marginTop: 6 }}>🔔 Turn on truck alerts</button>
+
+      {/* Option B: live proximity alerts. On web this renders an honest "get the
+          app" message, because no browser can do background location. */}
+      <ProximityAlerts profile={profile} />
       <button className="btn btn-ghost" onClick={signOut}>Log out</button>
       <p className="center muted" style={{ fontSize: '.75rem' }}>DonutNV • Make Your Next Party Sweet!®</p>
     </div>

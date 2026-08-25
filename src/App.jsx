@@ -37,7 +37,7 @@ const OpFeedback = lazy(() => import('./pages/operator/Feedback'))
 const Preview = lazy(() => import('./pages/Preview'))
 
 function Loading() {
-  return <div className="screen pad-top center"><p className="muted" style={{ marginTop: '40vh' }}>Loading…</p></div>
+  return <div className="screen pad-top center"><div style={{ marginTop: '40vh' }}><div className="spinner" /><p className="muted" style={{ marginTop: 14 }}>Loading…</p></div></div>
 }
 
 // Signed in, but no profile row loaded. Happens if signup's complete_signup
@@ -170,7 +170,12 @@ export default function App() {
     content = (
       <AppShell>
         <Routes>
-          <Route path="/" element={<Find />} />
+          {/* Landing after login is Rewards, NOT the map. Every Find mount is a
+              billable Google Maps load; landing there meant one per login for
+              customers who only came to check their card. The Find tab now lives
+              at /find and the map itself only mounts on tap (see Find.jsx). */}
+          <Route path="/" element={<Navigate to="/rewards" replace />} />
+          <Route path="/find" element={<Find />} />
           <Route path="/book" element={<Book />} />
           <Route path="/games" element={<Games />} />
           <Route path="/schedule" element={<Schedule />} />

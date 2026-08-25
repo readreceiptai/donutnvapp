@@ -4,6 +4,7 @@ Mirrors the working task list. Grouped by what unblocks a beta launch. Update as
 
 ## Needs Kevin / external (lead time — start early)
 
+- **#63 Option B proximity push — purchases + credentials.** Server pipeline is built, applied and proven (`docs/PROXIMITY-PUSH.md`); these are the only hard blockers left. (a) **FCM project + APNs key** → set Supabase secret `FCM_SERVICE_ACCOUNT`; until then native sends log as `suppressed`. (b) **Transistorsoft background-geolocation license**, ~$300-400 **per platform** — buy before beta, the free plugin loses its watcher on process kill/reboot. (c) **Google Play registration $25**. (d) **App Review background-location justification + privacy labels** — drafted, see `docs/STORE-SUBMISSION-LOCATION.md`; remaining: demo account, review video, privacy-policy page update (checklist in that doc).
 - **#34 Custom SMTP** — top pre-tester blocker. Default Supabase email is rate-limited (~30/hr) and lands in spam; testers may never get confirmation/reset emails. Provide SendGrid/SES/Postmark creds → ~10-min wire-up.
 - **#53 Twilio + #35 A2P 10DLC** — carrier approval to text consumers takes 1–3 weeks. Gates en-route SMS and spend-alert SMS. Start registration now.
 - **#54 PITR backups + restore runbook** — enable PITR on the APP project; only catastrophic-risk item left. Runbook already written (Desktop).
@@ -18,6 +19,18 @@ Mirrors the working task list. Grouped by what unblocks a beta launch. Update as
 - **#60 Turnstile** — `verify-turnstile` fails open until `TURNSTILE_SECRET_KEY` is set; set it + flip to enforce before public launch.
 - **#61 Rewards frontend tenant filter** — defense-in-depth; RLS already covers it. Next frontend deploy.
 - **#62 Staging + CI/migrations** — stand up a staging Supabase project; run migrations there first; add CI + RLS smoke tests. Also resolve the `elle-dashboard` function-name collision across projects and remove the stale `puck-ingest/` folder.
+
+## Option B — live proximity push (branch `feature/proximity-push`)
+
+Server side is **done and proven**; see `docs/PROXIMITY-PUSH.md` for detail and benchmarks. Remaining, in order:
+
+- **#64 Native projects — DONE**: both platforms build green; Android has FCM in the APK; iOS runs in the Simulator with entitlements wired and capture->ingest proven end-to-end. Awaiting only `GoogleService-Info.plist` for the iOS Firebase side.
+- **#70 Google Maps in the native shell — FIXED 2026-08-18.** Root cause: web key `AIzaSyDB_R2…` is referrer-locked to donutnvapp.com and the WebView origin (`capacitor://localhost` iOS / `https://localhost` Android) is rejected. Fix: a second key `VITE_GOOGLE_MAPS_NATIVE_KEY` (GCP project `francheyez-saturation`, Maps JS API only, no referrer restriction — referrer cannot secure a JS key inside a WebView, so it is scoped by API + quota); `googleMaps.js` picks it at runtime when running natively, web key untouched. Verified: Find map renders in the iOS Simulator with no RefererNotAllowedMapError. **RULE: do NOT set `VITE_GOOGLE_MAPS_NATIVE_KEY` on Netlify** — Vite would inline it into the public web bundle. It belongs in the local `.env` used for native builds only. Not yet verified on a physical Android device (same bundle, so expected to work).
+- **#65 Edge functions — DEPLOYED DORMANT 2026-08-18** (`location-ingest` v1 JWT-verified, `proximity-dispatch` v1 secret-gated; probed 401/403). Remaining: schedule the every-minute cron at switch-on.
+- **#66 Cutover from `notify-proximity`** — run both (they share the `proximity_pushes` dedupe key, so no double-sends), then retire the legacy function once native coverage is real. (Its donut-emoji push copy was fixed and redeployed as v10 on 2026-08-17.)
+- **#67 Staged switch-on** — flip `app_config.proximity_push_enabled = 'true'`, then enable `tenant_proximity_config` one territory at a time (Ocala first). Watch opt-in rate and CTR via `get_proximity_metrics()`.
+- **#68 Operator + customer controls UI** — customer prefs component is built and wired into `/account`; still need the per-tenant admin toggle/radius screen for operators.
+- **#69 Swap in Transistorsoft** — one line in `pickProvider()` once #63(b) is purchased. Do this before beta, not after.
 
 ## Product / growth (bigger builds)
 

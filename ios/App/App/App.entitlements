@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Option B: native push. 'development' is correct for debug/TestFlight builds;
+	     Xcode flips it to 'production' automatically for App Store archives.
+	     Only takes effect once the App ID has the Push Notifications capability
+	     and a signing team is set. -->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>

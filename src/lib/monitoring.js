@@ -12,11 +12,29 @@ let enabled = false
 export function initMonitoring() {
   const dsn = import.meta.env.VITE_SENTRY_DSN
   if (!dsn) return
+  // Native shells (Capacitor) get their own environment so Simulator/TestFlight
+  // runs never mix into the web 'production' bucket. Detected via the URL
+  // scheme, which is capacitor:// on iOS and https://localhost on Android.
+  const isNative = typeof window !== 'undefined' &&
+    (window.location.protocol === 'capacitor:' ||
+     (window.location.protocol === 'https:' && window.location.hostname === 'localhost'))
+  const platform = isNative
+    ? (window.location.protocol === 'capacitor:' ? 'ios' : 'android')
+    : 'web'
+  // vite build always sets MODE=production, so a locally served production
+  // bundle (vite preview, a file server) would otherwise pollute the real
+  // production error stream. Native is checked first: Android's shell origin
+  // is https://localhost and must stay native-android, not local.
+  const isLocalWeb = !isNative && typeof window !== 'undefined' &&
+    ['localhost', '127.0.0.1'].includes(window.location.hostname)
   Sentry.init({
     dsn,
-    environment: import.meta.env.MODE || 'production',
+    environment: isNative ? `native-${platform}`
+      : isLocalWeb ? 'local'
+      : (import.meta.env.MODE || 'production'),
     tracesSampleRate: 0.1,
   })
+  Sentry.setTag('platform', platform)
   enabled = true
 }
 

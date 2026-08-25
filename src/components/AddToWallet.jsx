@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { AppleWalletBadge, GoogleWalletBadge } from './WalletBadges'
 
 // "Add to Wallet" for the DonutNV loyalty card — Apple Wallet on iOS/Mac,
 // Google Wallet on Android. The wallet-pass Edge Function signs a real .pkpass
@@ -71,18 +72,11 @@ export default function AddToWallet() {
         Keep your stamp card in your phone's wallet — your progress updates itself, and we can ping you when a truck is nearby.
       </p>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-        {!IS_ANDROID && (
-          <button className="btn btn-primary" disabled={state === 'loading'} onClick={addApple}>
-            {state === 'loading' ? 'Getting your card…' : ' Add to Apple Wallet'}
-          </button>
-        )}
-        {!IS_APPLE && (
-          <button className="btn btn-blue" disabled={state === 'loading'} onClick={addGoogle}>
-            {state === 'loading' ? 'Getting your card…' : 'Save to Google Wallet'}
-          </button>
-        )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
+        {!IS_ANDROID && <AppleWalletBadge onClick={addApple} disabled={state === 'loading'} />}
+        {!IS_APPLE && <GoogleWalletBadge onClick={addGoogle} disabled={state === 'loading'} />}
       </div>
+      {state === 'loading' && <div className="muted" style={{ marginTop: 8, fontSize: '.85rem' }}>Getting your card…</div>}
 
       {msg && <div className={state === 'error' ? 'error' : 'success'} style={{ marginTop: 12 }}>{msg}</div>}
     </div>

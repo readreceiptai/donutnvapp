@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DonutNV</string>
+    <string name="title_activity_main">DonutNV</string>
+    <string name="package_name">com.donutnv.app</string>
+    <string name="custom_url_scheme">com.donutnv.app</string>
+</resources>

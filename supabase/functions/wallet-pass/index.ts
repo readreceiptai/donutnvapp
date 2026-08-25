@@ -1,35 +1,34 @@
 // ── Wallet pass issuance — Supabase Edge Function ──
-// DonutNV loyalty card for Apple Wallet / Google Wallet, spend-based points model.
-//   • Apple  → signed .pkpass (PKCS#7 detached w/ Pass Type cert + Apple WWDR).
+// DonutNV rewards card — solid brand-blue storeCard (no strip, no QR).
+//   • Apple  → signed .pkpass (blue background, circular logo, points/tier +
+//     member fields, all on the front).
 //   • Google → signed "Save to Google Wallet" JWT.
-// Reads live points/tier from get_member_rewards(). Art (icon/logo/strip) is
-// fetched from the live site; missing art degrades gracefully. No-ops to
-// { configured:false } until the platform's signing secrets are set.
-//
-// Apple secrets:  APPLE_PASS_CERT_P12_BASE64, APPLE_PASS_CERT_PASSWORD,
-//                 APPLE_PASS_TYPE_ID, APPLE_TEAM_ID, APPLE_WWDR_CERT_BASE64
-// Google secrets: GOOGLE_WALLET_ISSUER_ID, GOOGLE_WALLET_SA_JSON
-// Art overrides:  WALLET_ICON_URL, WALLET_LOGO_URL, WALLET_STRIP_URL
+// Live points/tier from get_member_rewards(). No-ops to { configured:false }
+// until the platform's signing secrets are set.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import forge from 'https://esm.sh/node-forge@1.3.1'
 import JSZip from 'https://esm.sh/jszip@3.10.1'
 import * as jose from 'https://esm.sh/jose@5.9.6'
+import { Image } from 'https://deno.land/x/imagescript@1.2.15/mod.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const env = (k: string) => Deno.env.get(k) || ''
 
-const HEX_BG = '#ffffff'
-const ICON_URL = env('WALLET_ICON_URL') || 'https://donutnvapp.com/icon-192.png'
-const LOGO_URL = env('WALLET_LOGO_URL') || 'https://donutnvapp.com/dnv_logo.png'
-const STRIP_URL = env('WALLET_STRIP_URL') || 'https://donutnvapp.com/wallet-strip.png'
+const BLUE = 'rgb(2, 52, 98)'
+const WHITE = 'rgb(255, 255, 255)'
+const LABEL = 'rgb(159, 178, 201)'
+const HEX_BG = '#023462'
+const ICON_URL = env('WALLET_ICON_URL') || 'https://donutnvapp.com/logo-round.png'
+const LOGO_URL = env('WALLET_LOGO_URL') || 'https://donutnvapp.com/brand/logo-white-solid.png'
+const THUMB_URL = env('WALLET_THUMB_URL') || 'https://donutnvapp.com/logo-round.png'
 const FALLBACK_PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
 
 const CORS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-headers': 'authorization, content-type, apikey',
+  'access-control-allow-headers': 'authorization, apikey, content-type, x-client-info, x-supabase-api-version',
   'access-control-allow-methods': 'POST, OPTIONS',
 }
 function json(body: unknown, status = 200) {
@@ -55,13 +54,39 @@ async function fetchPngOrNull(url: string): Promise<Uint8Array | null> {
   try { const r = await fetch(url); if (!r.ok) return null; return new Uint8Array(await r.arrayBuffer()) } catch { return null }
 }
 
-type Rewards = { balance: number; lifetime: number; tier: string; rewardDollars: string; freeDozenPts: number; toFreeDozen: number }
+type Rewards = {
+  balance: number; tier: string; rewardDollars: string; toFreeDozen: number;
+  name: string; memberSince: string; tenantName: string;
+}
+const L = 'PKTextAlignmentLeft'
 
-function buildApplePassJson(o: {
-  passTypeId: string; teamId: string; serial: string; authToken: string;
-  firstName: string; tenantName: string; memberId: string; r: Rewards;
-}) {
-  const nextReward = o.r.toFreeDozen > 0 ? `${o.r.toFreeDozen.toLocaleString()} pts to a free dozen` : 'Free dozen ready! 🍩'
+type PassLoc = { latitude: number; longitude: number; relevantText?: string }
+
+// deno-lint-ignore no-explicit-any
+async function loadLocations(admin: any, tenantId: string): Promise<PassLoc[]> {
+  const nowMs = Date.now()
+  const { data: stops } = await admin.from('scheduled_stops')
+    .select('stop_name, lat, lng, ends_at, starts_at')
+    .eq('tenant_id', tenantId).eq('is_public', true)
+    .not('lat', 'is', null).not('lng', 'is', null)
+    .order('starts_at', { ascending: true }).limit(40)
+  const locs: PassLoc[] = (stops || [])
+    .filter((s: any) => !s.ends_at || new Date(s.ends_at).getTime() >= nowMs)
+    .slice(0, 10)
+    .map((s: any) => ({
+      latitude: s.lat, longitude: s.lng,
+      relevantText: `DonutNV is nearby${s.stop_name ? ' at ' + s.stop_name : ''} — fresh mini donuts!`.slice(0, 150),
+    }))
+  if (locs.length > 0) return locs
+  // Fallback: tenant home coordinates if no scheduled stops exist.
+  const { data: home } = await admin.from('tenants').select('lat, lng, name').eq('id', tenantId).maybeSingle()
+  if (home?.lat != null && home?.lng != null) {
+    return [{ latitude: home.lat, longitude: home.lng, relevantText: `${home.name || 'DonutNV'} is nearby — fresh mini donuts!`.slice(0, 150) }]
+  }
+  return []
+}
+
+function buildApplePassJson(o: { passTypeId: string; teamId: string; serial: string; authToken: string; memberId: string; r: Rewards; locations: PassLoc[]; refUrl: string | null }) {
   return {
     formatVersion: 1,
     passTypeIdentifier: o.passTypeId,
@@ -71,27 +96,31 @@ function buildApplePassJson(o: {
     webServiceURL: `${SUPABASE_URL}/functions/v1/wallet-pass-web/`,
     organizationName: 'DonutNV',
     description: 'DonutNV Rewards Card',
-    logoText: 'DonutNV',
-    foregroundColor: 'rgb(17, 17, 17)',
-    backgroundColor: 'rgb(255, 255, 255)',
-    labelColor: 'rgb(221, 27, 34)',
-    storeCard: {
+    foregroundColor: WHITE,
+    backgroundColor: BLUE,
+    labelColor: LABEL,
+    // Location relevance: surface the card on the lock screen when the customer
+    // is near a truck stop. maxDistance 1000m is Apple's large-radius maximum
+    // (~0.62 mi) — the widest a Wallet pass allows. Up to 10 stops per pass.
+    ...(o.locations.length ? { maxDistance: 1000, locations: o.locations.slice(0, 10) } : {}),
+    // Personal referral QR — a friend scans it to sign up; the referrer earns on
+    // the friend's first purchase. Also gives the card its bottom barcode row.
+    ...(o.refUrl ? {
+      barcodes: [{ format: 'PKBarcodeFormatQR', message: o.refUrl, messageEncoding: 'iso-8859-1', altText: 'Scan to share DonutNV' }],
+      barcode: { format: 'PKBarcodeFormatQR', message: o.refUrl, messageEncoding: 'iso-8859-1', altText: 'Scan to share DonutNV' },
+    } : {}),
+    generic: {
       headerFields: [{ key: 'tier', label: 'TIER', value: o.r.tier }],
       primaryFields: [{ key: 'balance', label: 'BALANCE', value: `${o.r.balance.toLocaleString()} pts` }],
       secondaryFields: [
-        { key: 'value', label: 'REWARD VALUE', value: `$${o.r.rewardDollars}` },
-        { key: 'member', label: 'MEMBER', value: o.firstName || 'Donut fan' },
+        { key: 'member', label: 'MEMBER', value: o.r.name, textAlignment: L },
+        { key: 'since', label: 'MEMBER SINCE', value: o.r.memberSince, textAlignment: L },
       ],
-      auxiliaryFields: [{ key: 'next', label: 'NEXT REWARD', value: nextReward }],
-      backFields: [
-        { key: 'earn', label: 'Earning points', value: 'Earn 10 points for every $1 you spend. 100 points = $1 in rewards.' },
-        { key: 'redeem', label: 'Free dozen', value: `Redeem a free dozen mini-donuts at ${o.r.freeDozenPts.toLocaleString()} points.` },
-        { key: 'birthday', label: 'Birthday treat', value: 'A free dozen mini-donuts during your birthday month.' },
-        { key: 'truck', label: 'Home truck', value: o.tenantName },
-        { key: 'how', label: 'How to earn', value: 'Give your phone number at the register every visit — points are credited when your number is entered at checkout.' },
+      auxiliaryFields: [
+        { key: 'value', label: 'REWARDS', value: `$${o.r.rewardDollars}`, textAlignment: L },
+        { key: 'next', label: 'NEXT REWARD', value: o.r.toFreeDozen > 0 ? `${o.r.toFreeDozen.toLocaleString()} pts` : 'Ready!', textAlignment: L },
       ],
     },
-    barcodes: [{ format: 'PKBarcodeFormatQR', message: o.memberId, messageEncoding: 'iso-8859-1' }],
   }
 }
 
@@ -106,15 +135,32 @@ async function buildApplePkpass(passJson: Record<string, unknown>): Promise<Uint
   if (!key || !cert) throw new Error('could not read Pass Type cert/key from .p12')
   const wwdr = forge.pki.certificateFromAsn1(forge.asn1.fromDer(forge.util.decode64(env('APPLE_WWDR_CERT_BASE64'))))
 
-  const icon = (await fetchPngOrNull(ICON_URL)) ?? b64ToBytes(FALLBACK_PNG_B64)
+  // Icons MUST be three distinct sizes for Apple to draw the icon on the pass
+  // face: 29 / 58 / 87 px. We had been shipping one 120px image reused for all
+  // three — iOS accepts that for notifications but silently refuses to render it
+  // on the card face. Resize the badge to the exact sizes here.
+  const iconSrc = (await fetchPngOrNull(ICON_URL)) ?? b64ToBytes(FALLBACK_PNG_B64)
   const files: Record<string, Uint8Array> = {
     'pass.json': new TextEncoder().encode(JSON.stringify(passJson)),
-    'icon.png': icon, 'icon@2x.png': icon, 'icon@3x.png': icon,
   }
+  try {
+    const base = await Image.decode(iconSrc)
+    for (const [name, px] of [['icon.png', 29], ['icon@2x.png', 58], ['icon@3x.png', 87]] as [string, number][]) {
+      files[name] = await base.clone().resize(px, px).encode()
+    }
+  } catch (_e) {
+    files['icon.png'] = iconSrc; files['icon@2x.png'] = iconSrc; files['icon@3x.png'] = iconSrc
+  }
+  console.log(JSON.stringify({ tag: 'wp-icons', i1: files['icon.png']?.length, i2: files['icon@2x.png']?.length, i3: files['icon@3x.png']?.length }))
   const logo = await fetchPngOrNull(LOGO_URL)
-  if (logo) { files['logo.png'] = logo; files['logo@2x.png'] = logo }
-  const strip = await fetchPngOrNull(STRIP_URL)
-  if (strip) { files['strip.png'] = strip; files['strip@2x.png'] = strip; files['strip@3x.png'] = strip }
+  if (logo) { files['logo.png'] = logo; files['logo@2x.png'] = logo; files['logo@3x.png'] = logo }
+
+  // Thumbnail = the round DonutNV badge. Unlike icon.png (which Apple only shows
+  // on the lock screen / notifications, never on the card face), the thumbnail IS
+  // drawn on the front of a generic pass — right side, next to the fields. This is
+  // the same slot GEICO's gecko / Amazon's product photo use.
+  const thumb = await fetchPngOrNull(THUMB_URL)
+  if (thumb) { files['thumbnail.png'] = thumb; files['thumbnail@2x.png'] = thumb; files['thumbnail@3x.png'] = thumb }
 
   const manifest: Record<string, string> = {}
   for (const [name, bytes] of Object.entries(files)) manifest[name] = sha1Hex(bytes)
@@ -143,27 +189,29 @@ async function buildApplePkpass(passJson: Record<string, unknown>): Promise<Uint
   return await zip.generateAsync({ type: 'uint8array' })
 }
 
-async function buildGoogleSaveUrl(o: { memberId: string; firstName: string; tenantName: string; r: Rewards }): Promise<string> {
+async function buildGoogleSaveUrl(o: { memberId: string; r: Rewards; locations: PassLoc[]; refUrl: string | null }): Promise<string> {
   const sa = JSON.parse(env('GOOGLE_WALLET_SA_JSON'))
   const issuerId = env('GOOGLE_WALLET_ISSUER_ID')
   const classId = `${issuerId}.donutnv_loyalty`
   const objectId = `${issuerId}.${o.memberId.replace(/[^a-zA-Z0-9._-]/g, '')}`
-  const nextReward = o.r.toFreeDozen > 0 ? `${o.r.toFreeDozen.toLocaleString()} pts to a free dozen` : 'Free dozen ready!'
-
   const loyaltyClass = {
     id: classId, issuerName: 'DonutNV', programName: 'DonutNV Rewards',
-    programLogo: { sourceUri: { uri: env('GOOGLE_WALLET_LOGO_URL') || 'https://donutnvapp.com/icon-512.png' } },
+    programLogo: { sourceUri: { uri: env('GOOGLE_WALLET_LOGO_URL') || 'https://donutnvapp.com/logo-round.png' } },
     reviewStatus: 'UNDER_REVIEW', hexBackgroundColor: HEX_BG,
   }
   const loyaltyObject = {
-    id: objectId, classId, state: 'ACTIVE', accountName: o.firstName || 'Donut fan', accountId: o.memberId,
+    id: objectId, classId, state: 'ACTIVE', accountName: o.r.name, accountId: o.memberId,
     loyaltyPoints: { label: 'Points', balance: { string: `${o.r.balance.toLocaleString()} pts` } },
-    barcode: { type: 'QR_CODE', value: o.memberId },
+    // Google "Nearby Passes" geofence triggers. Google has no hard cap on count,
+    // but the API accepts up to 10 per object — we send the same stops as Apple.
+    locations: o.locations.slice(0, 10).map((l) => ({ latitude: l.latitude, longitude: l.longitude })),
+    // Personal referral QR (same as Apple) — friends scan it to sign up.
+    ...(o.refUrl ? { barcode: { type: 'QR_CODE', value: o.refUrl, alternateText: 'Scan to share DonutNV' } } : {}),
     textModulesData: [
       { header: 'Tier', body: o.r.tier, id: 'tier' },
       { header: 'Reward value', body: `$${o.r.rewardDollars}`, id: 'value' },
-      { header: 'Next reward', body: nextReward, id: 'next' },
-      { header: 'Home truck', body: o.tenantName, id: 'truck' },
+      { header: 'Next reward', body: o.r.toFreeDozen > 0 ? `${o.r.toFreeDozen.toLocaleString()} pts` : 'Ready!', id: 'next' },
+      { header: 'Home truck', body: o.r.tenantName, id: 'truck' },
     ],
   }
   const key = await jose.importPKCS8(sa.private_key, 'RS256')
@@ -185,17 +233,21 @@ Deno.serve(async (req) => {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
   const { platform = 'apple' } = await req.json().catch(() => ({}))
 
-  const { data: profile } = await admin.from('profiles').select('id, tenant_id, first_name').eq('id', user.id).maybeSingle()
+  const { data: profile } = await admin.from('profiles')
+    .select('id, tenant_id, first_name, last_name, created_at, referral_code').eq('id', user.id).maybeSingle()
   if (!profile) return json({ error: 'no profile' }, 404)
   const { data: tenant } = await admin.from('tenants').select('name').eq('id', profile.tenant_id).maybeSingle()
-  const tenantName = tenant?.name || 'DonutNV'
 
   const { data: rw } = await admin.rpc('get_member_rewards', { p_profile: profile.id })
   const row = Array.isArray(rw) ? rw[0] : rw
   const r: Rewards = {
-    balance: row?.points_balance ?? 0, lifetime: row?.points_lifetime ?? 0,
-    tier: row?.tier ?? 'Glazed', rewardDollars: (row?.reward_dollars ?? 0).toString(),
-    freeDozenPts: row?.free_dozen_pts ?? 2000, toFreeDozen: row?.to_free_dozen ?? 2000,
+    balance: row?.points_balance ?? 0,
+    tier: row?.tier ?? 'Glazed',
+    rewardDollars: (row?.reward_dollars ?? 0).toString(),
+    toFreeDozen: row?.to_free_dozen ?? 2000,
+    name: `${profile.first_name || 'Member'}${profile.last_name ? ' ' + String(profile.last_name)[0] + '.' : ''}`,
+    memberSince: profile.created_at ? new Date(profile.created_at).getFullYear().toString() : '',
+    tenantName: tenant?.name || 'DonutNV',
   }
 
   let { data: pass } = await admin.from('wallet_passes').select('*').eq('profile_id', profile.id).eq('platform', platform).maybeSingle()
@@ -207,10 +259,15 @@ Deno.serve(async (req) => {
     pass = created
   }
 
+  // Location triggers: up to 10 upcoming public truck stops for this tenant,
+  // shared by both the Apple and Google passes (~0.62 mi lock-screen relevance).
+  const locations = await loadLocations(admin, profile.tenant_id)
+  const refUrl = profile.referral_code ? `https://donutnvapp.com/r/${profile.referral_code}` : null
+
   if (platform === 'google') {
     if (!googleConfigured()) return json({ configured: false })
     try {
-      const saveUrl = await buildGoogleSaveUrl({ memberId: profile.id, firstName: profile.first_name, tenantName, r })
+      const saveUrl = await buildGoogleSaveUrl({ memberId: profile.id, r, locations, refUrl })
       return json({ configured: true, saveUrl, serial: pass.serial_number })
     } catch (e) { return json({ configured: true, error: `google pass failed: ${e instanceof Error ? e.message : e}` }, 500) }
   }
@@ -218,8 +275,7 @@ Deno.serve(async (req) => {
   const passJson = buildApplePassJson({
     passTypeId: env('APPLE_PASS_TYPE_ID') || 'pass.com.donutnv.loyalty',
     teamId: env('APPLE_TEAM_ID') || 'TEAMID',
-    serial: pass.serial_number, authToken: pass.auth_token,
-    firstName: profile.first_name, tenantName, memberId: profile.id, r,
+    serial: pass.serial_number, authToken: pass.auth_token, memberId: profile.id, r, locations, refUrl,
   })
   if (!appleConfigured()) return json({ configured: false, serial: pass.serial_number, pass_preview: passJson })
 

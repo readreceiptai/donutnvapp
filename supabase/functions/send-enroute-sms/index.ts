@@ -47,8 +47,8 @@ Deno.serve(async (req) => {
   const base = Deno.env.get('APP_BASE_URL') || 'https://donutnvapp.com'
   const link = `${base}/track/${b.tracking_token}`
   const messages: Record<string, string> = {
-    enroute: `🍩 DonutNV is on the way to your event! Track us live & see our ETA: ${link}`,
-    review:  `Thanks for having DonutNV! 🍩 How'd we do? Leave a quick review in the next hour for a sweet bonus toward your next event: ${link}`,
+    enroute: `DonutNV is on the way to your event! Track us live & see our ETA: ${link}`,
+    review:  `Thanks for having DonutNV! How'd we do? Leave a quick review in the next hour for a sweet bonus toward your next event: ${link}`,
   }
   const bodyText = messages[kind] ?? messages.enroute
 

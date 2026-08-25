@@ -40,7 +40,7 @@ async function digestFor(tenant: { id: string; name: string }) {
     .select('amount_cents').eq('tenant_id', tenant.id).gte('created_at', weekAgo)
   const revenue = (rev || []).reduce((s, r) => s + (r.amount_cents || 0), 0)
 
-  const text = `🍩 ${tenant.name} — this week: ${signups} new signups, ${served} served`
+  const text = `${tenant.name} this week: ${signups} new signups, ${served} served`
     + `${revenue ? ` ($${(revenue / 100).toFixed(0)})` : ''}, ${bookings} booking requests, `
     + `${reviews} reviews, ${wallet} wallet adds. Open the app for the full picture.`
 
