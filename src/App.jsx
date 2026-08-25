@@ -69,7 +69,15 @@ function previewEnabled() {
   // explicitly sets VITE_PREVIEW_MODE=1 (we set that on staging). There is no
   // ?preview=1 URL backdoor — so a production build (env var unset, as it will be
   // for donutnvapp.com) can never be unlocked from the address bar.
-  return import.meta.env.VITE_PREVIEW_MODE === '1'
+  if (import.meta.env.VITE_PREVIEW_MODE !== '1') return false
+  // Hard guard (defense-in-depth): the production domain can NEVER be in preview,
+  // even if the env var ever leaks into a prod build again (that incident happened
+  // once). Staging / deploy-preview hosts (*.netlify.app, localhost) keep preview.
+  try {
+    const h = typeof window !== 'undefined' ? window.location.hostname : ''
+    if (h === 'donutnvapp.com' || h.endsWith('.donutnvapp.com')) return false
+  } catch { /* noop */ }
+  return true
 }
 
 export default function App() {

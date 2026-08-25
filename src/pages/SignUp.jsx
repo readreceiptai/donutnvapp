@@ -43,6 +43,8 @@ export default function SignUp() {
     if (isLikelyBot({ honeypot: f.company, startedAt: startedAt.current })) return // silent
     if (!isConfigured) { setErr('App not connected to Supabase yet — add your keys in .env, then try again.'); return }
     if (!f.firstName || !f.phone || !f.email || !f.zip) { setErr('Please fill in your name, phone, email, and ZIP.'); return }
+    if (!/^\d{5}$/.test(f.zip.trim())) { setErr('Please enter a valid 5-digit ZIP code.'); return }
+    if (![10, 11].includes(f.phone.replace(/\D/g, '').length)) { setErr('Please enter a valid mobile number.'); return }
     if (!f.password || f.password.length < 8) { setErr('Please choose a password (at least 8 characters) so you can log in without a code next time.'); return }
     if (age === null) { setErr('Please pick your birthday — that\'s how you get your birthday treat 🎂'); return }
     if (isMinor && !f.parentEmail) { setErr('Since you\'re under 13, please add a parent or guardian\'s email so they can approve your account.'); return }
