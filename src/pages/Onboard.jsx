@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { supabase, isConfigured } from '../lib/supabase'
+import TurnstileWidget, { TURNSTILE_ENABLED, passesTurnstile } from '../components/Turnstile'
 
 // ── Owner onboarding intake ──────────────────────────────────────────────
 // Public, no login. A branded one-question-per-screen wizard that writes a
@@ -10,7 +11,7 @@ import { supabase, isConfigured } from '../lib/supabase'
 // (LeadConnector uses, other booking service) are included/skipped by `when`,
 // and the progress total updates as those conditions resolve.
 
-const CALENDLY_URL = 'https://calendly.com/juan-donutsnv'
+const CALENDLY_URL = 'https://calendly.com/kevin-donutnv/30min'
 
 const STEPS = [
   { key: 'territory_name', type: 'text', required: true,
@@ -100,6 +101,7 @@ export default function Onboard() {
   const [idx, setIdx] = useState(0)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const [tsToken, setTsToken] = useState('') // Cloudflare Turnstile token (public form spam guard)
   const submitting = useRef(false)
 
   // Steps visible for the current answers (conditionals resolved). The progress
@@ -135,8 +137,10 @@ export default function Onboard() {
       return
     }
     setErr('')
-    if (clampedIdx < total - 1) setIdx(clampedIdx + 1)
-    else submit()
+    if (clampedIdx < total - 1) { setIdx(clampedIdx + 1); return }
+    // Last step: this is a public form, so require the human check before submit.
+    if (TURNSTILE_ENABLED && !tsToken) { setErr('Please complete the quick "I\'m human" check below.'); return }
+    submit()
   }
 
   function back() {
@@ -150,6 +154,12 @@ export default function Onboard() {
     if (!isConfigured) { setErr('Not connected yet — please try again in a moment.'); return }
     submitting.current = true
     setBusy(true)
+    // Server-side verify the Turnstile token (no-op until Turnstile is configured).
+    if (!(await passesTurnstile(tsToken))) {
+      setBusy(false); submitting.current = false
+      setErr('Verification failed — please try the human check again.')
+      return
+    }
     // Build the row: visible answers only; hidden conditionals and empty
     // optionals go in as null. Arrays map straight to the text[] columns.
     const row = {}
@@ -282,6 +292,7 @@ export default function Onboard() {
           </div>
         )}
 
+        {clampedIdx === total - 1 && <TurnstileWidget onToken={setTsToken} />}
         {err && <div className="error">{err}</div>}
 
         <div style={S.nav}>

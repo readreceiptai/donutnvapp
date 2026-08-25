@@ -3,7 +3,14 @@
   command = "npm run build"
   publish = "dist"
 
-# SPA routing — every path serves index.html so React Router can take over.
+# Public onboarding form is its own standalone page (must come BEFORE the SPA
+# catch-all so /onboard serves the form entry, not the gated app shell).
+[[redirects]]
+  from = "/onboard"
+  to = "/onboard.html"
+  status = 200
+
+# SPA routing — every other path serves index.html so React Router can take over.
 [[redirects]]
   from = "/*"
   to = "/index.html"

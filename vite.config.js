@@ -4,6 +4,18 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // Installable PWA: add-to-home-screen + service worker for web push later.
 export default defineConfig({
+  // Two HTML entries: the main app (index.html) and the standalone public
+  // onboarding form (onboard.html). Keeping /onboard as its own entry means the
+  // Netlify edge gate can expose only the form without making the private-beta
+  // app runnable (index.html stays gated).
+  build: {
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        onboard: 'onboard.html',
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

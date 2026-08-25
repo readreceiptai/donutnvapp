@@ -48,6 +48,17 @@ export default async (req: Request, context: Context) => {
     return context.next();
   }
 
+  // Public onboarding form. /onboard is a STANDALONE page (onboard.html) that
+  // renders only the intake wizard — not the app router — so exposing it lets
+  // invitees fill the form without the site password and WITHOUT unlocking the
+  // beta app: the main app's index.html stays gated, so even though the JS/CSS
+  // under /assets is served (inert, minified, already shipped to testers), there
+  // is no ungated HTML that boots the app. Fonts/Turnstile load from their own
+  // domains and aren't gated here.
+  if (p === "/onboard" || p === "/onboard.html" || p.startsWith("/assets/")) {
+    return context.next();
+  }
+
   const password = Netlify.env.get("SITE_PASSWORD") ?? "";
   if (!password) return new Response("Preview locked (gate not configured).", { status: 503 });
   const token = await sha256Hex(password + "|dnv-gate-v1");
