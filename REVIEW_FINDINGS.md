@@ -72,6 +72,15 @@ Compare this against the Claude Code report.
 
 ---
 
+> **#122 MEDIUM/LOW SECURITY SWEEP — 2026-08-25** (non-beta-gating). Status of the security-bearing items:
+> - **M2** `get_event_tracking` PII/no-expiry — **FIXED**: link now expires ~2 days after the event + stops for cancelled bookings. Re-tested (rolled back): today→data, 5-days-old→NULL, cancelled→NULL. Migration `20260825_fix_122_get_event_tracking_expiry`.
+> - **M7** trigger-order fragility on `profiles` — **MITIGATED** (no change needed): after the C1 fix, `auto_superadmin` and `profiles_superadmin_guard` are both identity-checked (verified `auth.email()`), so elevation is blocked regardless of firing order. Left as-is to avoid re-ordering live triggers.
+> - **M8** Google Maps key lockdown — **ALREADY DONE** (web key referrer-locked to donutnvapp.com; native key API+quota-scoped) + added `loading=async`. Deprecated `google.maps.Marker`→`AdvancedMarkerElement` migration still open (cosmetic, non-security).
+> - **Low** `wallet_passes.auth_token` client-readable — **FIXED**: revoked table SELECT + re-granted all columns except `auth_token`. Re-tested: unreadable by authenticated/anon, service_role unaffected. Migration `20260825_fix_122_wallet_passes_hide_auth_token`.
+> - **Low** Sentry-from-CDN — **ALREADY DONE** (bundled `@sentry/react`).
+> - **M1** server-side bot enforcement — **OPEN, needs a decision**: Turnstile is verified server-side (`verify-turnstile`) but decoupled from the action; `submit_booking` is anon-callable and `signInWithOtp` is direct, so a bot can skip the check. Fix = booking edge-wrapper (verify token → call RPC as service_role, revoke anon execute) + enable native CAPTCHA in Supabase Auth for OTP. Changes the public booking/auth path — awaiting go-ahead.
+> - Reliability items (**M3** tenant-load error handling, **M4** TrackEvent polling, **M5** PWA scope, **M6** unmount/alive guards) are not security — deferred to a separate pass.
+
 ## 🟡 MEDIUM
 
 - **Bot protection is client-only / currently off.** Honeypot + Turnstile run only in React; a script posting straight to Supabase skips them, and `passesTurnstile` returns true when Turnstile isn't configured (it isn't yet). Enforce the token server-side for `bookings`/signup. *(`src/lib/antibot.js`, `Turnstile.jsx`)*

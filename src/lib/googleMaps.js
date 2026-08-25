@@ -34,7 +34,7 @@ export function loadGoogleMaps() {
     if (window.google?.maps) return resolve(window.google.maps)
     if (!key || key.startsWith('your-')) return reject(new Error('no-key'))
     const s = document.createElement('script')
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=marker`
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=marker&loading=async`
     s.async = true
     s.onload = () => resolve(window.google.maps)
     s.onerror = () => reject(new Error('load-failed'))
