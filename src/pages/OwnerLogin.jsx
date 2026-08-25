@@ -60,6 +60,16 @@ export default function OwnerLogin() {
         <button className="btn btn-primary" disabled={busy}>{busy ? 'Signing in…' : 'Log in'}</button>
       </form>
 
+      {/* Prospect entry: not a franchisee yet -> the public onboarding intake.
+          Plain <a> (not a router Link) so it loads the STANDALONE /onboard page. */}
+      <div className="card card-accent stack center" style={{ marginTop: 16 }}>
+        <h2 style={{ margin: 0, fontSize: '1.05rem' }}>Not a franchisee yet?</h2>
+        <p className="muted" style={{ margin: 0, fontSize: '.9rem' }}>
+          Interested in bringing DonutNV to your area? Start your onboarding here.
+        </p>
+        <a className="btn btn-primary" href="/onboard">Ready to Onboard — Start Here</a>
+      </div>
+
       <p className="center muted" style={{ marginTop: 14, fontSize: '.85rem' }}>
         Customer looking for donuts? <Link className="link" to="/login">Log in here</Link>
       </p>
