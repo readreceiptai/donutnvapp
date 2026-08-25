@@ -6,23 +6,27 @@
 // JSON) and sends it to Kevin via Resend. The onboarding_intake row is the system
 // of record; this is a notification layer ON TOP.
 //
-// Fail-safe by design: this runs AFTER the row is committed (a Database Webhook),
-// so it can never block the insert. It also never throws — if Resend isn't
-// configured yet, or a send fails, it logs and returns 200 so the webhook doesn't
-// retry-storm and a broken email never matters to the submission.
+// Config lives in app_config (RLS on, no policies => service-role only), read
+// here via the auto-provided service role — so no manually-set Edge secrets are
+// required. Keys:
+//   onboarding_notify_secret   shared secret; must match the ?key= the trigger sends
+//   resend_api_key             Resend sending key (re_...) for send.donutnvapp.com
+//   onboarding_notify_from     (optional) default: DonutNV Onboarding <onboarding@send.donutnvapp.com>
+//   onboarding_notify_to       (optional) default: kevindmc@trenchlogic.com
 //
-// Auth: shared secret via ?key= (or x-webhook-secret header). Deploy with
-// --no-verify-jwt. Config (Supabase Edge Function secrets):
-//   ONBOARDING_NOTIFY_SECRET  our shared webhook secret
-//   RESEND_API_KEY            Resend sending key (re_...)  [send.donutnvapp.com]
-//   RESEND_FROM   (optional)  default: DonutNV Onboarding <onboarding@send.donutnvapp.com>
-//   NOTIFY_TO     (optional)  default: kevindmc@trenchlogic.com
-// ============================================================================
+// Fail-safe: runs AFTER the row is committed (a webhook), so it can never block
+// the insert; it never throws and always returns 200 so a failed/unconfigured
+// send never matters to the submission.
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const NOTIFY_SECRET = Deno.env.get('ONBOARDING_NOTIFY_SECRET') ?? ''
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const RESEND_FROM = Deno.env.get('RESEND_FROM') ?? 'DonutNV Onboarding <onboarding@send.donutnvapp.com>'
-const NOTIFY_TO = Deno.env.get('NOTIFY_TO') ?? 'kevindmc@trenchlogic.com'
+const admin = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  { auth: { persistSession: false } },
+)
+
+const DEFAULT_FROM = 'DonutNV Onboarding <onboarding@send.donutnvapp.com>'
+const DEFAULT_TO = 'kevindmc@trenchlogic.com'
 
 const esc = (s: unknown) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -38,7 +42,6 @@ const val = (v: unknown) => {
   return String(v)
 }
 
-// The fields to show, in order, with human labels.
 const FIELDS: [string, string, ((v: unknown) => string)?][] = [
   ['territory_name', 'Territory'],
   ['owner_name', 'Owner name(s)'],
@@ -88,11 +91,22 @@ function buildEmail(row: Record<string, any>) {
   return { subject, html }
 }
 
+async function loadConfig() {
+  const { data } = await admin.from('app_config').select('key, value').in('key', [
+    'onboarding_notify_secret', 'resend_api_key', 'onboarding_notify_from', 'onboarding_notify_to',
+  ])
+  const cfg: Record<string, string> = {}
+  for (const r of data ?? []) cfg[r.key] = r.value
+  return cfg
+}
+
 Deno.serve(async (req) => {
   try {
+    const cfg = await loadConfig()
     const url = new URL(req.url)
     const presented = url.searchParams.get('key') ?? req.headers.get('x-webhook-secret')
-    if (!NOTIFY_SECRET || presented !== NOTIFY_SECRET) {
+    const secret = cfg.onboarding_notify_secret ?? ''
+    if (!secret || presented !== secret) {
       return new Response('unauthorized', { status: 401 })
     }
 
@@ -102,10 +116,9 @@ Deno.serve(async (req) => {
     const row = body?.record ?? body ?? {}
     if (!row || typeof row !== 'object') return new Response('ok (no row)', { status: 200 })
 
-    // If Resend isn't configured yet, log and succeed (don't retry-storm, don't
-    // matter to the submission — it's already saved).
-    if (!RESEND_API_KEY) {
-      console.log('onboarding-notify: RESEND_API_KEY not set; skipping send for row', row.id)
+    const resendKey = cfg.resend_api_key ?? ''
+    if (!resendKey) {
+      console.log('onboarding-notify: resend_api_key not configured; skipping send for row', row.id)
       return new Response('ok (email not configured)', { status: 200 })
     }
 
@@ -113,16 +126,19 @@ Deno.serve(async (req) => {
     try {
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: RESEND_FROM, to: [NOTIFY_TO], subject, html }),
+        headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: cfg.onboarding_notify_from || DEFAULT_FROM,
+          to: [cfg.onboarding_notify_to || DEFAULT_TO],
+          subject, html,
+        }),
       })
-      if (!r.ok) {
-        console.error('onboarding-notify: Resend send failed', r.status, await r.text().catch(() => ''))
-      }
+      const txt = await r.text().catch(() => '')
+      if (r.ok) console.log('onboarding-notify: sent for row', row.id, txt)
+      else console.error('onboarding-notify: Resend send failed', r.status, txt)
     } catch (e) {
       console.error('onboarding-notify: Resend request threw', String(e))
     }
-    // Always 200: the row is saved; a failed notification must not signal failure.
     return new Response('ok', { status: 200 })
   } catch (e) {
     console.error('onboarding-notify: unexpected error', String(e))
