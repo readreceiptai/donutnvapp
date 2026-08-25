@@ -103,10 +103,12 @@ export default function SignUp() {
       <div className="screen pad-top">
         <h1>Almost there!</h1>
         <form className="card stack" onSubmit={verify} style={{ marginTop: 10 }}>
-          <p className="muted" style={{ margin: 0 }}>We emailed a 6-digit code to <b>{f.email}</b>.</p>
+          <p className="muted" style={{ margin: 0 }}>We emailed a code to <b>{f.email}</b>.</p>
           <div className="field" style={{ margin: 0 }}>
             <label>Enter your code</label>
-            <input type="text" inputMode="numeric" placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} required />
+            <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={10}
+              placeholder="Enter your code" value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} required />
           </div>
           {err && <div className="error">{err}</div>}
           <button className="btn btn-primary" disabled={busy}>{busy ? 'Creating account…' : 'Create my account'}</button>

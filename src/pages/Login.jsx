@@ -82,7 +82,7 @@ export default function Login() {
             <label>Email address</label>
             <input type="email" inputMode="email" placeholder="you@email.com"
               value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <div className="hint">We'll email you a 6-digit code to log in this time.</div>
+            <div className="hint">We'll email you a code to log in this time.</div>
           </div>
           {noAccount && (
             <div className="error">We couldn't find an account for that email.{' '}
@@ -96,10 +96,12 @@ export default function Login() {
 
       {stage === 'verify' && (
         <form className="card stack" onSubmit={verify} style={{ marginTop: 10 }}>
-          <p className="muted" style={{ margin: 0 }}>We emailed a 6-digit code to <b>{email}</b>.</p>
+          <p className="muted" style={{ margin: 0 }}>We emailed a code to <b>{email}</b>.</p>
           <div className="field" style={{ margin: 0 }}>
             <label>Enter code</label>
-            <input type="text" inputMode="numeric" placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} required />
+            <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={10}
+              placeholder="Enter your code" value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} required />
           </div>
           {err && <div className="error">{err}</div>}
           <button className="btn btn-primary" disabled={busy}>{busy ? 'Checking…' : 'Log in'}</button>
