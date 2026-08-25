@@ -1,0 +1,9 @@
+/* Onboard-page brand token overrides.
+   Exact DonutNV brand values, scoped to the standalone /onboard page only
+   (imported AFTER index.css in onboard-entry.jsx so these win). The main app's
+   tokens are intentionally left untouched — this only affects /onboard. */
+:root {
+  --red: #DD1B22;    /* DonutNV red */
+  --blue: #023462;   /* DonutNV deep blue */
+  --cream: #F4F1EC;  /* DonutNV cream background */
+}

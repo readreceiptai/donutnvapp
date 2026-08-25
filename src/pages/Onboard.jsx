@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { supabase, isConfigured } from '../lib/supabase'
 import TurnstileWidget, { TURNSTILE_ENABLED, passesTurnstile } from '../components/Turnstile'
+import BrandLogo from '../components/BrandLogo'
 
 // ── Owner onboarding intake ──────────────────────────────────────────────
 // Public, no login. A branded one-question-per-screen wizard that writes a
@@ -27,12 +28,11 @@ const STEPS = [
   { key: 'operator_type', type: 'mc', required: true,
     title: 'Which best describes you?',
     options: ['Full-time owner-operator', 'Weekend or weeknight', 'Multi-unit operator'] },
-  { key: 'plan', type: 'mc', required: true,
-    title: 'Which do you want?',
-    options: [
-      { label: 'The Window (customer app)', value: 'window' },
-      { label: 'The Window + ELLE (event lead engine)', value: 'window_elle' },
-    ] },
+  // Two independent options: The Window is the base (always included, pre-checked
+  // and locked); E.L.L.E. is an optional add-on. Both -> plan 'window_elle';
+  // Window only -> 'window'. Rendered by the custom 'plan' block below.
+  { key: 'plan', type: 'plan', required: true,
+    title: 'Which do you want?' },
   { key: 'outcomes', type: 'multi', required: true,
     title: 'What are you most looking forward to?', help: 'Check all that apply.',
     options: [
@@ -48,7 +48,13 @@ const STEPS = [
     title: 'How many trucks or trailers?', options: ['1', '2', '3', '4+'] },
   { key: 'gps_method', type: 'mc', required: true,
     title: 'For live tracking, what will you use?',
-    options: ['My phone (free)', 'A $50 plug-in puck per truck'] },
+    help: 'We recommend a GPS puck for every truck, with your phone as a backup.',
+    options: [
+      { label: 'A plug-in GPS puck (recommended)', value: 'GPS puck',
+        note: 'Most reliable. Every truck should have one; your phone stays free to use.' },
+      { label: 'My phone (free)', value: 'My phone (free)',
+        note: "Your phone must be dedicated to GPS and stay on during service — you won't be able to use it for anything else." },
+    ] },
   { key: 'phones', type: 'mc', required: true,
     title: 'What phones will you run the app on?', options: ['iPhone', 'Android', 'Both'] },
   { key: 'owned_zips', type: 'textarea', required: true,
@@ -84,14 +90,15 @@ const STEPS = [
     placeholder: 'Anything at all…' },
 ]
 
-const MULTI_KEYS = STEPS.filter((s) => s.type === 'multi').map((s) => s.key)
 const optValue = (o) => (typeof o === 'string' ? o : o.value)
 const optLabel = (o) => (typeof o === 'string' ? o : o.label)
+const optNote = (o) => (typeof o === 'string' ? '' : (o.note || ''))
 const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim())
 
 function initialAnswers() {
   const a = {}
   for (const s of STEPS) a[s.key] = s.type === 'multi' ? [] : ''
+  a.plan = 'window' // The Window is the base plan, always included
   return a
 }
 
@@ -183,7 +190,7 @@ export default function Onboard() {
       <Frame>
         <div className="card card-accent stack" style={{ marginTop: 24 }}>
           <div style={S.mark} aria-hidden="true"><span style={S.markHole} /></div>
-          <h1 style={{ marginBottom: 4 }}>Welcome to DonutNV. Let's get you live.</h1>
+          <h1 style={{ marginBottom: 4 }}>Welcome to the DonutNV App!</h1>
           <p className="muted" style={{ margin: 0 }}>
             A few quick questions, about 5 minutes, so we can build your platform. Here's the path:
           </p>
@@ -264,15 +271,46 @@ export default function Onboard() {
           <div className="stack" style={{ marginTop: 0 }}>
             {step.options.map((o) => {
               const val = optValue(o)
+              const note = optNote(o)
               const selected = answers[step.key] === val
               return (
                 <button type="button" key={val} onClick={() => setValue(step.key, val)}
-                  style={{ ...S.choice, ...(selected ? S.choiceOn : null) }}>
-                  <span style={{ ...S.radio, ...(selected ? S.radioOn : null) }} aria-hidden="true" />
-                  <span>{optLabel(o)}</span>
+                  style={{ ...S.choice, ...(note ? S.choiceTop : null), ...(selected ? S.choiceOn : null) }}>
+                  <span style={{ ...S.radio, ...(note ? S.indTop : null), ...(selected ? S.radioOn : null) }} aria-hidden="true" />
+                  <span style={S.optCol}>
+                    <span>{optLabel(o)}</span>
+                    {note && <span style={S.optNote}>{note}</span>}
+                  </span>
                 </button>
               )
             })}
+          </div>
+        )}
+
+        {step.type === 'plan' && (
+          <div className="stack" style={{ marginTop: 0 }}>
+            {/* Base plan — always included, locked on. */}
+            <div style={{ ...S.choice, ...S.choiceTop, ...S.choiceOn, cursor: 'default' }}>
+              <span style={{ ...S.check, ...S.indTop, ...S.checkOn }} aria-hidden="true">✓</span>
+              <span style={S.optCol}>
+                <span>The Window (customer app)</span>
+                <span style={S.optNote}>Included with every unit.</span>
+              </span>
+            </div>
+            {/* Optional add-on — E.L.L.E. */}
+            {(() => {
+              const on = answers.plan === 'window_elle'
+              return (
+                <button type="button" onClick={() => setValue('plan', on ? 'window' : 'window_elle')}
+                  style={{ ...S.choice, ...S.choiceTop, ...(on ? S.choiceOn : null) }}>
+                  <span style={{ ...S.check, ...S.indTop, ...(on ? S.checkOn : null) }} aria-hidden="true">{on ? '✓' : ''}</span>
+                  <span style={S.optCol}>
+                    <span>E.L.L.E. (Event Lead List Engine)</span>
+                    <span style={S.optNote}>Optional add-on. Finds and delivers event leads.</span>
+                  </span>
+                </button>
+              )
+            })()}
           </div>
         )}
 
@@ -307,11 +345,12 @@ export default function Onboard() {
 }
 
 // Full-screen, phone-width, cream frame. Owns its own chrome (no app shell).
+// Uses the app's real BrandLogo (logo-black) so branding matches pixel-for-pixel.
 function Frame({ children }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--cream)' }}>
       <div className="screen" style={{ paddingTop: 18, paddingBottom: 40 }}>
-        <div style={S.brand}>Donut<span style={{ color: 'var(--blue)' }}>NV</span></div>
+        <div style={S.brand}><BrandLogo height={34} /></div>
         {children}
       </div>
     </div>
@@ -319,7 +358,7 @@ function Frame({ children }) {
 }
 
 const S = {
-  brand: { textAlign: 'center', fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1.4rem', color: 'var(--red)', letterSpacing: '-.5px', padding: '4px 0 2px' },
+  brand: { display: 'flex', justifyContent: 'center', padding: '4px 0 6px' },
   mark: { width: 60, height: 60, borderRadius: '50%', background: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow)' },
   markHole: { width: 20, height: 20, borderRadius: '50%', background: 'var(--cream)', display: 'block' },
   path: { margin: '2px 0 0', paddingLeft: 20, lineHeight: 1.7, color: 'var(--ink)' },
@@ -330,6 +369,10 @@ const S = {
   textarea: { width: '100%', minHeight: 110, fontFamily: 'var(--font-body)', fontSize: '1.05rem', padding: '12px 14px', border: '2px solid var(--line)', borderRadius: 12, background: '#fff', color: 'var(--ink)', resize: 'vertical' },
   choice: { display: 'flex', alignItems: 'center', gap: 12, width: '100%', minHeight: 'var(--tap)', textAlign: 'left', background: '#fff', border: '2px solid var(--line)', borderRadius: 14, padding: '14px 16px', font: 'inherit', fontFamily: 'var(--font-head)', fontWeight: 600, fontSize: '1rem', color: 'var(--ink)', cursor: 'pointer' },
   choiceOn: { borderColor: 'var(--red)', background: 'rgba(221,27,34,.06)' },
+  choiceTop: { alignItems: 'flex-start' },      // top-align the indicator when an option has a note
+  indTop: { marginTop: 2 },
+  optCol: { display: 'flex', flexDirection: 'column', gap: 3 },
+  optNote: { fontFamily: 'var(--font-body)', fontWeight: 400, fontSize: '.82rem', color: 'var(--muted)', lineHeight: 1.35 },
   radio: { flex: '0 0 auto', width: 22, height: 22, borderRadius: '50%', border: '2px solid var(--line)', boxSizing: 'border-box' },
   radioOn: { borderColor: 'var(--red)', boxShadow: 'inset 0 0 0 5px var(--red)' },
   check: { flex: '0 0 auto', width: 22, height: 22, borderRadius: 6, border: '2px solid var(--line)', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '.8rem', fontWeight: 800 },

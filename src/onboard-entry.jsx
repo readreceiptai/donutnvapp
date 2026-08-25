@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import Onboard from './pages/Onboard'
 import './index.css'
+import './onboard-brand.css' // exact brand tokens, scoped to /onboard (must load after index.css)
 
 // Standalone entry for the PUBLIC owner-onboarding form (/onboard).
 //
