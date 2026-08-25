@@ -1,13 +1,18 @@
 node_modules
 dist
+dist-*
 .env
-.env.local
+.env.*
+!.env.example
 .DS_Store
 *.log
 *.zip
 ziQWxk1u
 vite.config.js.timestamp-*
 __wtest
+
+# Supabase CLI local temp
+supabase/.temp
 
 # Local Netlify folder
 .netlify

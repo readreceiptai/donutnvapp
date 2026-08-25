@@ -86,18 +86,12 @@ export default function ProximityAlerts({ profile }) {
     if (prefs?.enabled) await setProximityRadius(profile, miles)
   }
 
-  // Web users cannot get background location from any browser. Say so honestly
-  // rather than showing a switch that quietly does nothing.
+  // Web users cannot get background location from any browser. Until the native
+  // apps ship and proximity is switched on, render nothing on web rather than a
+  // "get the app" card for an app that isn't available yet (kill switch is OFF).
+  // Restore the honest "get the app" card here once the apps are live.
   if (cap && !cap.supportsBackground) {
-    return (
-      <div className="card" style={{ borderTop: '4px solid var(--brand, #DD1B22)' }}>
-        <h2 style={{ margin: 0 }}>Know when a truck is close</h2>
-        <p className="muted" style={{ marginTop: 6 }}>
-          Get the DonutNV app to be told the moment a truck rolls into your
-          neighborhood. Your browser cannot do this in the background.
-        </p>
-      </div>
-    )
+    return null
   }
 
   return (
