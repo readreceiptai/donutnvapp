@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { DEMO } from '../../lib/demo'
+import { useAuth } from '../../context/AuthContext'
 import FeedbackButton from '../../components/FeedbackButton'
 
 // ELLE — Event Lead Engine. Its own product, its own skin: dark, cyber-ish but
@@ -56,13 +57,16 @@ function typeLabel(code) {
   return m ? m[1] : (code || 'Other')
 }
 const STATUSES = [['apply', 'Applying'], ['waitlist', 'Waitlist'], ['booked', 'Won'], ['lost', 'Lost'], ['pass', 'Pass']]
-// Territory the superadmin view opens on when nothing else is remembered. Ocala (demo).
-const DEFAULT_TENANT_ID = '7c842426-3af1-43e1-b7ac-6311917e9bab'
 // Long-term relationship stages for business accounts (they never go away, so
 // there is no permanent "lost" — "Revisit later" parks without killing).
 const BIZ_STAGES = [['contacted', 'Reached out'], ['talking', 'In conversation'], ['client', 'Active client'], ['revisit', 'Revisit later']]
 
 export default function Elle() {
+  // #127 God Mode: ELLE now resolves its territory from the global acting-as context
+  // (generalizing the old ELLE-only switcher). Acting-as a tenant -> that tenant;
+  // not impersonating + superadmin -> 'ALL' (corporate/all-territory view); a normal
+  // operator -> their own tenant (edge function default).
+  const { actingTenantId, isSuperadmin: gSuper, setActingTenant } = useAuth()
   const [state, setState] = useState('loading') // loading|configuring|onboard|ready|error
   const [tenant, setTenant] = useState(null)
   const [events, setEvents] = useState([])
@@ -111,13 +115,13 @@ export default function Elle() {
         .catch(() => setLc({ connected: false }))
     } else setLc({ connected: false })
   }, [])
-  // Default to Ocala until further notice, regardless of any territory left in storage from a
-  // previous session (that stale value was pinning the board to Las Vegas). We overwrite storage
-  // to Ocala on load; the switcher still lets a superadmin change territory within the session.
+  // Open on the globally-selected territory: the acting-as tenant if impersonating,
+  // else 'ALL' for a superadmin (corporate view), else the operator's own tenant.
   useEffect(() => {
-    try { localStorage.setItem('elle_tenant', DEFAULT_TENANT_ID) } catch (_) { /* private mode */ }
-    load(DEFAULT_TENANT_ID)
-  }, [load])
+    const initial = actingTenantId || (gSuper ? 'ALL' : undefined)
+    setSelected(initial || '')
+    load(initial)
+  }, [load, actingTenantId, gSuper])
   // Auto-pull LeadConnector outcomes once per board open, so Won/Lost reflect LC
   // without the Z doing anything. Manual "Sync" button re-runs it on demand.
   const syncedRef = useRef(false)
@@ -315,7 +319,7 @@ export default function Elle() {
           )}
           {!DEMO && isSuper && tenants.length >= 1 && (
             <select className="elle-switch" value={selected} aria-label="Territory"
-              onChange={(e) => { try { localStorage.setItem('elle_tenant', e.target.value) } catch (_) { /* private mode */ } setSelected(e.target.value); load(e.target.value) }}>
+              onChange={(e) => { const v = e.target.value; setActingTenant(v === 'ALL' ? null : v).catch(() => {}) }}>
               <option value="ALL">◆ All Territories</option>
               {tenants.map((t) => <option key={t.id} value={t.id}>{t.franchise_name}</option>)}
             </select>

@@ -15,14 +15,14 @@ const TEMPLATES = [
 ]
 
 export default function Campaigns() {
-  const { profile } = useAuth()
+  const { profile, effectiveTenantId } = useAuth()
   const [campaigns, setCampaigns] = useState([])
   const [editing, setEditing] = useState(null) // template kind being configured
   const [form, setForm] = useState({})
   const [msg, setMsg] = useState('')
 
   const load = () => supabase.from('campaigns').select('*')
-    .eq('tenant_id', profile.tenant_id).order('created_at', { ascending: false })
+    .eq('tenant_id', effectiveTenantId).order('created_at', { ascending: false })
     .then(({ data }) => setCampaigns(data || []))
 
   useEffect(() => { if (profile) load() }, [profile]) // eslint-disable-line
@@ -40,9 +40,9 @@ export default function Campaigns() {
     tpl.fields.forEach(([k]) => { config[k] = isNaN(Number(form[k])) ? form[k] : Number(form[k]) })
     // Activating this game deactivates any other active game of the same kind.
     await supabase.from('campaigns').update({ is_active: false })
-      .eq('tenant_id', profile.tenant_id).eq('kind', tpl.kind).eq('is_active', true)
+      .eq('tenant_id', effectiveTenantId).eq('kind', tpl.kind).eq('is_active', true)
     const { error } = await supabase.from('campaigns').insert({
-      tenant_id: profile.tenant_id, kind: tpl.kind, name: form.name || tpl.name,
+      tenant_id: effectiveTenantId, kind: tpl.kind, name: form.name || tpl.name,
       config, is_active: true, starts_at: new Date().toISOString(),
       ends_at: new Date(Date.now() + 7 * 864e5).toISOString(),
     })

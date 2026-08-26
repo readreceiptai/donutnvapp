@@ -13,7 +13,7 @@ const STATUS_LABEL = {
 const ACTIVE = new Set(['enroute', 'arrived', 'serving', 'wrapping', 'departed', 'reviewed'])
 
 export default function Bookings() {
-  const { profile, tenant } = useAuth()
+  const { profile, tenant, effectiveTenantId } = useAuth()
   const [rows, setRows] = useState([])
   const [msg, setMsg] = useState('')
   const watch = useRef(null)
@@ -21,7 +21,7 @@ export default function Bookings() {
   const load = useCallback(async () => {
     if (!profile) return
     const { data } = await supabase.from('bookings').select('*')
-      .eq('tenant_id', profile.tenant_id).order('event_date', { ascending: true })
+      .eq('tenant_id', effectiveTenantId).order('event_date', { ascending: true })
     setRows(data || [])
   }, [profile])
   useEffect(() => { load() }, [load])

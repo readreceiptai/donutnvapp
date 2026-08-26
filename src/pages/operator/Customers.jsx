@@ -6,15 +6,15 @@ import { useAuth } from '../../context/AuthContext'
 // Every signup is a customer you own. Search it and export to CSV (handy for the
 // GHL contact migration later). Scoped to this operator's territory.
 export default function Customers() {
-  const { profile } = useAuth()
+  const { profile, effectiveTenantId } = useAuth()
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
 
   useEffect(() => {
-    if (!profile?.tenant_id) return
+    if (!effectiveTenantId) return
     supabase.from('profiles')
       .select('first_name,last_name,phone,email,zip,birthday,created_at')
-      .eq('tenant_id', profile.tenant_id).eq('role', 'customer')
+      .eq('tenant_id', effectiveTenantId).eq('role', 'customer')
       .order('created_at', { ascending: false })
       .then(({ data }) => setRows(data || []))
   }, [profile])

@@ -18,6 +18,7 @@ import Franchise from './pages/Franchise'
 import TrackEvent from './pages/TrackEvent'
 import Schedule from './pages/Schedule'
 import Onboard from './pages/Onboard'
+import GodModeBanner from './components/GodModeBanner'
 // Operator + preview screens are code-split into their own chunks, so customers
 // never download the franchisee/ELLE/admin code (and vice-versa). As the second
 // app (ELLE) grows, its route lazy-loads here too.
@@ -35,6 +36,7 @@ const Unrouted = lazy(() => import('./pages/operator/Unrouted'))
 const FranDev = lazy(() => import('./pages/operator/FranDev'))
 const OpFeedback = lazy(() => import('./pages/operator/Feedback'))
 const Preview = lazy(() => import('./pages/Preview'))
+const GodMode = lazy(() => import('./pages/operator/GodMode'))
 
 function Loading() {
   return <div className="screen pad-top center"><div style={{ marginTop: '40vh' }}><div className="spinner" /><p className="muted" style={{ marginTop: 14 }}>Loading…</p></div></div>
@@ -81,7 +83,7 @@ function previewEnabled() {
 }
 
 export default function App() {
-  const { session, profile, entitlements, loading } = useAuth()
+  const { session, profile, entitlements, loading, isSuperadmin, impersonating } = useAuth()
   const location = useLocation()
   const PREVIEW = previewEnabled()
   const path = location.pathname
@@ -151,29 +153,53 @@ export default function App() {
     // Authenticated but profile missing — recoverable screen, never the spinner.
     content = <NeedsSetup />
   } else if (profile && (profile.role === 'operator' || profile.role === 'admin')) {
-    // ELLE is its own full-screen product — render it bare, never inside the
-    // operator shell (which would add the top bar + bottom tab bar).
-    content = (onElle && entitlements?.elle) ? (
-      <Elle />
-    ) : (
-      <OperatorShell>
-        <Routes>
-          <Route path="/admin" element={<AdminHome />} />
-          <Route path="/admin/dashboard" element={<Dashboard />} />
-          <Route path="/admin/live" element={<GoLive />} />
-          <Route path="/admin/bookings" element={<Bookings />} />
-          <Route path="/admin/schedule" element={<OpSchedule />} />
-          <Route path="/admin/reviews" element={<OpReviews />} />
-          <Route path="/admin/corporate" element={<OpCorporate />} />
-          <Route path="/admin/customers" element={<OpCustomers />} />
-          <Route path="/admin/games" element={<Campaigns />} />
-          {profile?.is_superadmin && <Route path="/admin/unrouted" element={<Unrouted />} />}
-          {profile?.is_superadmin && <Route path="/admin/franchise" element={<FranDev />} />}
-          {entitlements?.elle && <Route path="/elle" element={<Elle />} />}
-          <Route path="*" element={<Navigate to="/admin" replace />} />
-        </Routes>
-      </OperatorShell>
-    )
+    // God Mode (#127): a superadmin actively impersonating a tenant may view that
+    // tenant's CUSTOMER storefront (Find/map/landing) branded as the acted tenant.
+    // STRICTLY gated on isSuperadmin + impersonating — never an env/preview flag (C2).
+    // Per-customer Rewards/Account content is a later phase (#6).
+    const CUSTOMER_ROUTES = ['/', '/find', '/book', '/games', '/schedule', '/rewards', '/account', '/franchise']
+    if (isSuperadmin && impersonating && CUSTOMER_ROUTES.includes(path)) {
+      content = (
+        <AppShell>
+          <Routes>
+            <Route path="/" element={<Navigate to="/find" replace />} />
+            <Route path="/find" element={<Find />} />
+            <Route path="/book" element={<Book />} />
+            <Route path="/games" element={<Games />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/rewards" element={<Rewards />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/franchise" element={<Franchise />} />
+            <Route path="*" element={<Navigate to="/find" replace />} />
+          </Routes>
+        </AppShell>
+      )
+    } else {
+      // ELLE is its own full-screen product — render it bare, never inside the
+      // operator shell (which would add the top bar + bottom tab bar).
+      content = (onElle && entitlements?.elle) ? (
+        <Elle />
+      ) : (
+        <OperatorShell>
+          <Routes>
+            <Route path="/admin" element={<AdminHome />} />
+            <Route path="/admin/dashboard" element={<Dashboard />} />
+            <Route path="/admin/live" element={<GoLive />} />
+            <Route path="/admin/bookings" element={<Bookings />} />
+            <Route path="/admin/schedule" element={<OpSchedule />} />
+            <Route path="/admin/reviews" element={<OpReviews />} />
+            <Route path="/admin/corporate" element={<OpCorporate />} />
+            <Route path="/admin/customers" element={<OpCustomers />} />
+            <Route path="/admin/games" element={<Campaigns />} />
+            {profile?.is_superadmin && <Route path="/admin/godmode" element={<GodMode />} />}
+            {profile?.is_superadmin && <Route path="/admin/unrouted" element={<Unrouted />} />}
+            {profile?.is_superadmin && <Route path="/admin/franchise" element={<FranDev />} />}
+            {entitlements?.elle && <Route path="/elle" element={<Elle />} />}
+            <Route path="*" element={<Navigate to="/admin" replace />} />
+          </Routes>
+        </OperatorShell>
+      )
+    }
   } else {
     content = (
       <AppShell>
@@ -196,5 +222,5 @@ export default function App() {
     )
   }
 
-  return (<>{!onLanding && !onElle && !onOnboard && <AwningBar />}<Suspense fallback={<Loading />}>{content}</Suspense></>)
+  return (<>{impersonating && <GodModeBanner />}{!onLanding && !onElle && !onOnboard && <AwningBar />}<Suspense fallback={<Loading />}>{content}</Suspense></>)
 }

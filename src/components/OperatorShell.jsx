@@ -1,10 +1,12 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 import BrandLogo from './BrandLogo'
 import FeedbackButton from './FeedbackButton'
+import { useAuth } from '../context/AuthContext'
 
 // Operator app wrapper: same shape as the customer shell, different tabs.
 // Three tabs, big targets — a zee can run the whole truck from this.
 export default function OperatorShell({ children }) {
+  const { isSuperadmin } = useAuth()
   return (
     <div className="screen">
       <div className="topbar">
@@ -12,6 +14,9 @@ export default function OperatorShell({ children }) {
           <BrandLogo height={24} />
           <span style={{ color: 'var(--ink)', fontSize: '.75rem', fontWeight: 600 }}>OWNER</span>
         </span>
+        {isSuperadmin && (
+          <Link to="/admin/godmode" style={{ fontSize: '.75rem', fontWeight: 700, color: 'var(--navy)', textDecoration: 'none' }}>⚡ God Mode</Link>
+        )}
       </div>
       {children}
       <FeedbackButton role="franchisee" />

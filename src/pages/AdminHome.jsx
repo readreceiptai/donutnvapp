@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 // Operator dashboard home (inside OperatorShell). Real numbers + the admin
 // KILL SWITCH: stop any truck that's broadcasting, from anywhere.
 export default function AdminHome() {
-  const { profile, tenant, entitlements, signOut } = useAuth()
+  const { profile, tenant, entitlements, signOut, effectiveTenantId } = useAuth()
   const [stats, setStats] = useState({ customers: null })
   const [liveTrucks, setLiveTrucks] = useState([])
   const [wallet, setWallet] = useState(null)
@@ -18,14 +18,14 @@ export default function AdminHome() {
     if (!profile) return
     const { count } = await supabase.from('profiles')
       .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', profile.tenant_id).eq('role', 'customer')
+      .eq('tenant_id', effectiveTenantId).eq('role', 'customer')
     setStats({ customers: count ?? 0 })
     const { data: live } = await supabase.from('active_live_sessions').select('*')
-      .eq('tenant_id', profile.tenant_id)
+      .eq('tenant_id', effectiveTenantId)
     setLiveTrucks(live || [])
-    const { data: w } = await supabase.rpc('get_wallet_metrics', { p_tenant: profile.tenant_id })
+    const { data: w } = await supabase.rpc('get_wallet_metrics', { p_tenant: effectiveTenantId })
     setWallet(Array.isArray(w) ? w[0] : w)
-    const { data: p } = await supabase.rpc('get_territory_pulse', { p_tenant: profile.tenant_id })
+    const { data: p } = await supabase.rpc('get_territory_pulse', { p_tenant: effectiveTenantId })
     setPulse(Array.isArray(p) ? p[0] : p)
     if (profile.is_superadmin) {
       const { data: u } = await supabase.rpc('get_unrouted_bookings')

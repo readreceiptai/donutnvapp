@@ -20,7 +20,7 @@ const DEFAULT_HOURS = 3          // default auto-expire window
 const NUDGE_AFTER_MS = 45 * 60000 // remind after 45 min live
 
 export default function GoLive() {
-  const { profile, tenant } = useAuth()
+  const { profile, tenant, effectiveTenantId } = useAuth()
   const [truck, setTruck] = useState(null)
   const [stops, setStops] = useState([])
   const [zones, setZones] = useState([])
@@ -42,18 +42,18 @@ export default function GoLive() {
     if (!profile) return
     ;(async () => {
       const { data: trucks } = await supabase.from('trucks').select('*')
-        .eq('tenant_id', profile.tenant_id).eq('is_active', true).limit(1)
+        .eq('tenant_id', effectiveTenantId).eq('is_active', true).limit(1)
       setTruck(trucks?.[0] || null)
       const { data: sched } = await supabase.from('scheduled_stops').select('*')
-        .eq('tenant_id', profile.tenant_id).gte('ends_at', new Date().toISOString())
+        .eq('tenant_id', effectiveTenantId).gte('ends_at', new Date().toISOString())
         .order('starts_at').limit(10)
       setStops(sched || [])
       const { data: bl } = await supabase.from('geofence_blacklist').select('*')
-        .eq('tenant_id', profile.tenant_id)
+        .eq('tenant_id', effectiveTenantId)
       setZones(bl || [])
       // Resume an already-open session if the operator reloads the page.
       const { data: live } = await supabase.from('active_live_sessions').select('*')
-        .eq('tenant_id', profile.tenant_id).limit(1)
+        .eq('tenant_id', effectiveTenantId).limit(1)
       // Resume an open session as a pinned spot (don't hijack the phone's GPS on
       // reload). The operator can tap "Share live GPS" to start streaming again.
       if (live?.[0]) { setSession(live[0]); setStartedAt(new Date(live[0].started_at).getTime()); setPinMode(true) }
@@ -129,7 +129,7 @@ export default function GoLive() {
     if (!truck) { setStatus('No truck set up for this territory yet.'); return }
     const ends = new Date(Date.now() + hours * 3600000).toISOString()
     const { data, error } = await supabase.from('live_sessions').insert({
-      tenant_id: profile.tenant_id, truck_id: truck.id,
+      tenant_id: effectiveTenantId, truck_id: truck.id,
       stop_name: stopName || 'On location', is_live: true,
       started_at: new Date().toISOString(), ends_at: ends, source: 'manual',
     }).select().single()
@@ -152,7 +152,7 @@ export default function GoLive() {
     if (!coords) { setStatus(`Couldn't find "${stopName}". Add a street/city, or pick a scheduled stop.`); return }
     const ends = new Date(Date.now() + hours * 3600000).toISOString()
     const { data, error } = await supabase.from('live_sessions').insert({
-      tenant_id: profile.tenant_id, truck_id: truck.id,
+      tenant_id: effectiveTenantId, truck_id: truck.id,
       stop_name: stopName, is_live: true,
       started_at: new Date().toISOString(), ends_at: ends, source: 'manual',
     }).select().single()

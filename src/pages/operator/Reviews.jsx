@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 // one-tap "Feature" to publish them to the website, and paste in standout
 // Google/Facebook testimonials by hand. Featured reviews show on the landing.
 export default function Reviews() {
-  const { profile } = useAuth()
+  const { profile, effectiveTenantId } = useAuth()
   const [reviews, setReviews] = useState([])
   const [incoming, setIncoming] = useState([])
   const [f, setF] = useState({ author_name: '', rating: 5, body: '' })
@@ -15,14 +15,14 @@ export default function Reviews() {
   const [msg, setMsg] = useState('')
 
   const load = useCallback(async () => {
-    if (!profile?.tenant_id) return
+    if (!effectiveTenantId) return
     const { data: revs } = await supabase.from('reviews').select('*')
-      .eq('tenant_id', profile.tenant_id).order('created_at', { ascending: false })
+      .eq('tenant_id', effectiveTenantId).order('created_at', { ascending: false })
     setReviews(revs || [])
     const importedBookingIds = new Set((revs || []).map((r) => r.booking_id).filter(Boolean))
     const { data: bks } = await supabase.from('bookings')
       .select('id,contact_name,review_rating,review_comment,reviewed_at')
-      .eq('tenant_id', profile.tenant_id).not('review_rating', 'is', null)
+      .eq('tenant_id', effectiveTenantId).not('review_rating', 'is', null)
       .order('reviewed_at', { ascending: false }).limit(50)
     setIncoming((bks || []).filter((b) => !importedBookingIds.has(b.id)))
   }, [profile])
@@ -31,7 +31,7 @@ export default function Reviews() {
 
   async function feature(b) {
     await supabase.from('reviews').insert({
-      tenant_id: profile.tenant_id, source: 'event', booking_id: b.id,
+      tenant_id: effectiveTenantId, source: 'event', booking_id: b.id,
       author_name: b.contact_name, rating: b.review_rating, body: b.review_comment || '', is_featured: true,
     })
     load()
@@ -42,7 +42,7 @@ export default function Reviews() {
     if (!f.body.trim()) { setMsg('Add the review text.'); return }
     setBusy(true)
     const { error } = await supabase.from('reviews').insert({
-      tenant_id: profile.tenant_id, source: 'manual',
+      tenant_id: effectiveTenantId, source: 'manual',
       author_name: f.author_name.trim() || 'Happy customer', rating: f.rating, body: f.body.trim(), is_featured: true,
     })
     setBusy(false)

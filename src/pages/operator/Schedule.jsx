@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 // "booked" time block (no details). This is also what feeds schedule-driven
 // Go Live later.
 export default function Schedule() {
-  const { profile } = useAuth()
+  const { profile, effectiveTenantId } = useAuth()
   const [stops, setStops] = useState([])
   const [f, setF] = useState(blank())
   const [busy, setBusy] = useState(false)
@@ -24,7 +24,7 @@ export default function Schedule() {
   }
 
   const load = () => supabase.from('scheduled_stops').select('*')
-    .eq('tenant_id', profile.tenant_id).gte('ends_at', new Date().toISOString())
+    .eq('tenant_id', effectiveTenantId).gte('ends_at', new Date().toISOString())
     .order('starts_at').then(({ data }) => setStops(data || []))
 
   useEffect(() => { if (profile) load() }, [profile]) // eslint-disable-line
@@ -32,14 +32,14 @@ export default function Schedule() {
   async function add(e) {
     e.preventDefault()
     setErr(''); setMsg('')
-    if (!profile?.tenant_id) { setErr('Sign in as an operator to add stops.'); return }
+    if (!effectiveTenantId) { setErr('Sign in as an operator to add stops.'); return }
     if (!f.stop_name || !f.date || !f.start || !f.end) { setErr('Add a name, date, start and end time.'); return }
     const starts = new Date(`${f.date}T${f.start}`)
     const ends = new Date(`${f.date}T${f.end}`)
     if (!(ends > starts)) { setErr('End time must be after start time.'); return }
     setBusy(true)
     const { error } = await supabase.from('scheduled_stops').insert({
-      tenant_id: profile.tenant_id,
+      tenant_id: effectiveTenantId,
       stop_name: f.stop_name.trim(),
       address: f.address.trim() || null,
       starts_at: starts.toISOString(),
