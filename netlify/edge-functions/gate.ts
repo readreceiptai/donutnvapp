@@ -63,7 +63,7 @@ export default async (req: Request, context: Context) => {
   // are just logos, so serve them without the gate (the app itself stays locked).
   const p = new URL(req.url).pathname;
   if (p === "/logo-round.png" || p === "/icon-192.png" || p === "/icon-512.png" || p.startsWith("/brand/")
-      || p === "/mini_donut.png" || p === "/outage.html" || p === "/maintenance.html") {
+      || p === "/mini_donut.png" || p === "/wallet-strip.png" || p === "/outage.html" || p === "/maintenance.html") {
     return context.next();
   }
 

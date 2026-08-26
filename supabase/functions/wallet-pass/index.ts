@@ -194,9 +194,19 @@ async function buildGoogleSaveUrl(o: { memberId: string; r: Rewards; locations: 
   const issuerId = env('GOOGLE_WALLET_ISSUER_ID')
   const classId = `${issuerId}.donutnv_loyalty`
   const objectId = `${issuerId}.${o.memberId.replace(/[^a-zA-Z0-9._-]/g, '')}`
+  // Keep this inline class in lockstep with the class registered via the Wallet REST
+  // API (#74) — same logo, hero, program name, colors — so a saved pass renders
+  // identically whether Google resolves the registered class or this definition.
   const loyaltyClass = {
     id: classId, issuerName: 'DonutNV', programName: 'DonutNV Rewards',
-    programLogo: { sourceUri: { uri: env('GOOGLE_WALLET_LOGO_URL') || 'https://donutnvapp.com/logo-round.png' } },
+    programLogo: {
+      sourceUri: { uri: env('GOOGLE_WALLET_LOGO_URL') || 'https://donutnvapp.com/logo-round.png' },
+      contentDescription: { defaultValue: { language: 'en-US', value: 'DonutNV logo' } },
+    },
+    heroImage: {
+      sourceUri: { uri: env('GOOGLE_WALLET_HERO_URL') || 'https://donutnvapp.com/wallet-strip.png' },
+      contentDescription: { defaultValue: { language: 'en-US', value: 'DonutNV Rewards' } },
+    },
     reviewStatus: 'UNDER_REVIEW', hexBackgroundColor: HEX_BG,
   }
   const loyaltyObject = {
